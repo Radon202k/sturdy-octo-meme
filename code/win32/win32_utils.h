@@ -44,4 +44,12 @@ win32_get_window_size(HWND hwnd)
     return result;
 }
 
+internal void
+win32_print_f32(char *string, f32 value)
+{
+    char buffer[512];
+    sprintf_s(buffer, sizeof(buffer), "%s: %.6f\n", string, value);
+    OutputDebugStringA(buffer);
+}
+
 #endif //WIN32_UTILS_H

@@ -69,6 +69,9 @@ win32_make_window(u32 x, u32 y, u32 w, u32 h, char *title)
     if (hwnd)
     {
         os.window_is_open = 1;
+        LARGE_INTEGER perfFrequency;
+        QueryPerformanceFrequency(&perfFrequency);
+        os.perfFrequency = (f32)perfFrequency.QuadPart;
     }
     else
     {

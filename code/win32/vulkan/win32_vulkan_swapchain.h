@@ -110,11 +110,13 @@ vulkan_choose_swap_extent(vulkan_context *vk, VkSurfaceCapabilitiesKHR *capabili
             .height = vk->windowHeight,
         };
         
-        actualExtent.width = clamp(actualExtent.width,
-                                   capabilities->minImageExtent.width, capabilities->maxImageExtent.width);
+        actualExtent.width = clamp_u32(actualExtent.width,
+                                       capabilities->minImageExtent.width,
+                                       capabilities->maxImageExtent.width);
         
-        actualExtent.height = clamp(actualExtent.height, 
-                                    capabilities->minImageExtent.height, capabilities->maxImageExtent.height);
+        actualExtent.height = clamp_u32(actualExtent.height, 
+                                        capabilities->minImageExtent.height,
+                                        capabilities->maxImageExtent.height);
         
         return actualExtent;
     }

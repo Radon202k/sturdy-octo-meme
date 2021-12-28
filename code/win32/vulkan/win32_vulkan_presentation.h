@@ -3,28 +3,6 @@
 #ifndef WIN32_VULKAN_PRESENTATION_H
 #define WIN32_VULKAN_PRESENTATION_H
 
-internal VkSubmitInfo
-vulkan_get_submitinfo(VkSemaphore waitSemaphores[], 
-                      VkPipelineStageFlags waitStages[],
-                      VkSemaphore signalSemaphores[],
-                      VkCommandBuffer *commandBuffers)
-{
-    VkSubmitInfo submitInfo = 
-    {
-        .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
-        .pNext = 0,
-        .waitSemaphoreCount = 1,
-        .pWaitSemaphores = waitSemaphores,
-        .pWaitDstStageMask = waitStages,
-        .commandBufferCount = 1,
-        .pCommandBuffers = commandBuffers,
-        .signalSemaphoreCount = 1,
-        .pSignalSemaphores = signalSemaphores,
-    };
-    
-    return submitInfo;
-}
-
 internal VkPresentInfoKHR
 vulkan_get_presentinfo_khr(VkSemaphore signalSemaphores[],
                            VkSwapchainKHR swapChains[],
@@ -44,6 +22,7 @@ vulkan_get_presentinfo_khr(VkSemaphore signalSemaphores[],
     
     return presentInfo;
 }
+
 internal void
 vulkan_cleanup_swapchain(vulkan_context *vk)
 {
@@ -70,6 +49,16 @@ vulkan_cleanup_swapchain(vulkan_context *vk)
     }
     
     vkDestroySwapchainKHR(vk->device, vk->swapChain.object, 0);
+    
+    for (u32 i = 0;
+         i < vk->swapChain.images.count;
+         ++i)
+    {
+        vkDestroyBuffer(vk->device, ((VkBuffer *)vk->uniformBuffers.data)[i], 0);
+        vkFreeMemory(vk->device, ((VkDeviceMemory *)vk->uniformBuffersMemory.data)[i], 0);
+    }
+    
+    vkDestroyDescriptorPool(vk->device, vk->descriptorPool, 0);
 }
 
 internal void
@@ -99,6 +88,9 @@ vulkan_remake_swapchain(vulkan_context *vk)
     vulkan_make_renderpass(vk);
     vulkan_make_graphics_pipeline(vk);
     vulkan_make_swapchain_framebuffers(vk);
+    vulkan_make_uniform_buffers(vk);
+    vulkan_make_descriptor_pool(vk);
+    vulkan_make_descriptor_sets(vk);
     vulkan_make_command_buffers(vk);
 }
 
@@ -134,7 +126,10 @@ vulkan_draw_frame(vulkan_context *vk)
     VkPipelineStageFlags waitStages[] = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
     VkSemaphore signalSemaphores[] = {renderFinishedSemaphore};
     VkCommandBuffer *commandBuffers = &((VkCommandBuffer *)vk->commandBuffers.data)[imageIndex];
-    VkSubmitInfo submitInfo = vulkan_get_submitinfo(waitSemaphores, waitStages, signalSemaphores, commandBuffers);
+    
+    vulkan_update_uniform_data(vk, imageIndex);
+    
+    VkSubmitInfo submitInfo = vulkan_get_submitinfo(waitSemaphores, 1, waitStages, signalSemaphores, 1, commandBuffers, 1);
     if (vkQueueSubmit(vk->queue, 1, &submitInfo, fence) != VK_SUCCESS)
     {
         fatal_error("Failed to submit draw command buffer!");

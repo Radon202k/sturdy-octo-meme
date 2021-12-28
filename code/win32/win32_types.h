@@ -25,6 +25,9 @@ typedef struct os_globals
     b32 window_is_open;
     vulkan_context vk;
     os_mouse mouse;
+    
+    f32 perfFrequency;
+    
 } os_globals;
 
 #endif //WIN32_TYPES_H

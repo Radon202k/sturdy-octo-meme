@@ -34,12 +34,17 @@ vulkan_get_applicationinfo(void)
 #include "win32_vulkan_instance.h"
 #include "win32_vulkan_surface.h"
 #include "win32_vulkan_shader.h"
-#include "win32_vulkan_input.h"
+#include "win32_vulkan_renderpass.h"
+#include "win32_vulkan_commands.h"
+#include "win32_vulkan_vertexinput.h"
+#include "win32_vulkan_buffer.h"
+#include "win32_vulkan_vertexbuffer.h"
+#include "win32_vulkan_indexbuffer.h"
+#include "win32_vulkan_uniform.h"
+#include "win32_vulkan_descriptor.h"
 #include "win32_vulkan_viewport.h"
 #include "win32_vulkan_rasterizer.h"
-#include "win32_vulkan_renderpass.h"
 #include "win32_vulkan_pipeline.h"
-#include "win32_vulkan_commands.h"
 #include "win32_vulkan_presentation.h"
 
 internal b32
@@ -95,11 +100,52 @@ vulkan_init(vulkan_context *vk)
     
     // Make swap chain and graphics pipeline
     vulkan_make_swapchain(vk);
+    vulkan_make_descriptor_set_layout(vk);
     vulkan_make_graphics_pipeline(vk);
     vulkan_make_swapchain_framebuffers(vk);
     
-    // Make command pool/buffers
+    // Make command pool
     vulkan_make_command_pool(vk);
+    
+    // Populate vertices
+    vk->vertices = make_typeless_vector(4, sizeof(vulkan_vertex));
+    
+    ((vulkan_vertex *)vk->vertices.data)[0].pos = V2(-0.5f, -0.5f);
+    ((vulkan_vertex *)vk->vertices.data)[0].color = V3(1.0f, 0.0f, 0.0f);
+    
+    ((vulkan_vertex *)vk->vertices.data)[1].pos = V2(0.5f, -0.5f);
+    ((vulkan_vertex *)vk->vertices.data)[1].color = V3(0.0f, 1.0f, 0.0f);
+    
+    ((vulkan_vertex *)vk->vertices.data)[2].pos = V2(0.5f, 0.5f);
+    ((vulkan_vertex *)vk->vertices.data)[2].color = V3(0.0f, 0.0f, 1.0f);
+    
+    ((vulkan_vertex *)vk->vertices.data)[3].pos = V2(-0.5f, 0.5f);
+    ((vulkan_vertex *)vk->vertices.data)[3].color = V3(1.0f, 1.0f, 1.0f);
+    
+    // Populate indices
+    vk->indices = make_typeless_vector(6, sizeof(u16));
+    
+    ((u16 *)vk->indices.data)[0] = 0;
+    ((u16 *)vk->indices.data)[1] = 1;
+    ((u16 *)vk->indices.data)[2] = 2;
+    ((u16 *)vk->indices.data)[3] = 2;
+    ((u16 *)vk->indices.data)[4] = 3;
+    ((u16 *)vk->indices.data)[5] = 0;
+    
+    // Make vertex buffer
+    vulkan_make_vertexbuffer(vk);
+    
+    // Make index buffer
+    vulkan_make_indexbuffer(vk);
+    
+    // Make uniform buffers
+    vulkan_make_uniform_buffers(vk);
+    
+    // Make descriptor pool/sets
+    vulkan_make_descriptor_pool(vk);
+    vulkan_make_descriptor_sets(vk);
+    
+    // Make command buffer
     vulkan_make_command_buffers(vk);
     
     // Make swapchain semaphores
@@ -116,6 +162,14 @@ vulkan_cleanup(vulkan_context *vk)
 #endif
     
     vulkan_cleanup_swapchain(vk);
+    
+    vkDestroyDescriptorSetLayout(vk->device, vk->descriptorSetLayout, 0);
+    
+    vkDestroyBuffer(vk->device, vk->indexBuffer, 0);
+    vkFreeMemory(vk->device, vk->indexBufferMemory, 0);
+    
+    vkDestroyBuffer(vk->device, vk->vertexBuffer, 0);
+    vkFreeMemory(vk->device, vk->vertexBufferMemory, 0);
     
     for (u32 i = 0;
          i < VULKAN_MAX_FRAMES_IN_FLIGHT;

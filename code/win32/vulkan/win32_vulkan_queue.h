@@ -3,6 +3,30 @@
 #ifndef WIN32_VULKAN_QFAMILY_H
 #define WIN32_VULKAN_QFAMILY_H
 
+internal VkSubmitInfo
+vulkan_get_submitinfo(VkSemaphore waitSemaphores[],
+                      u32 waitSemaphoreCount,
+                      VkPipelineStageFlags waitStages[],
+                      VkSemaphore signalSemaphores[],
+                      u32 signalSemaphoreCount,
+                      VkCommandBuffer *commandBuffers,
+                      u32 commandBufferCount)
+{
+    VkSubmitInfo submitInfo = 
+    {
+        .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+        .pNext = 0,
+        .waitSemaphoreCount = waitSemaphoreCount,
+        .pWaitSemaphores = waitSemaphores,
+        .pWaitDstStageMask = waitStages,
+        .commandBufferCount = commandBufferCount,
+        .pCommandBuffers = commandBuffers,
+        .signalSemaphoreCount = signalSemaphoreCount,
+        .pSignalSemaphores = signalSemaphores,
+    };
+    
+    return submitInfo;
+}
 
 internal VkDeviceQueueCreateInfo
 vulkan_get_queue_createinfo(vulkan_context *vk)

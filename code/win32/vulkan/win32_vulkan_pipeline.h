@@ -3,6 +3,7 @@
 #ifndef WIN32_VULKAN_PIPELINE_H
 #define WIN32_VULKAN_PIPELINE_H
 
+
 internal VkPipelineDynamicStateCreateInfo
 vulkan_get_dynamicstate_createinfo(void)
 {
@@ -25,15 +26,15 @@ vulkan_get_dynamicstate_createinfo(void)
 }
 
 internal VkPipelineLayoutCreateInfo
-vulkan_get_pipelinelayout_createinfo(void)
+vulkan_get_pipelinelayout_createinfo(VkDescriptorSetLayout *setLayouts, u32 setLayoutCount)
 {
     VkPipelineLayoutCreateInfo pipelineLayoutInfo = 
     {
         .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
         .pNext = 0,
         .flags = 0,
-        .setLayoutCount = 0,
-        .pSetLayouts = 0,
+        .setLayoutCount = setLayoutCount,
+        .pSetLayouts = setLayouts,
         .pushConstantRangeCount = 0,
         .pPushConstantRanges = 0,
     };
@@ -92,7 +93,8 @@ vulkan_make_graphics_pipeline(vulkan_context *vk)
     };
     
     // Input info
-    VkPipelineVertexInputStateCreateInfo vertexInputInfo = vulkan_get_vertexinput_createinfo();
+    VkVertexInputBindingDescription bindingDesc = vulkan_get_binding_description();
+    VkPipelineVertexInputStateCreateInfo vertexInputInfo = vulkan_get_vertexinput_createinfo(&bindingDesc);
     VkPipelineInputAssemblyStateCreateInfo inputAssInfo = vulkan_get_inputassembly_createinfo();
     
     // Viewport state
@@ -114,7 +116,8 @@ vulkan_make_graphics_pipeline(vulkan_context *vk)
     VkPipelineDynamicStateCreateInfo dynamicState = vulkan_get_dynamicstate_createinfo();
     
     // Pipeline layout
-    VkPipelineLayoutCreateInfo pipelineLayoutInfo = vulkan_get_pipelinelayout_createinfo();
+    VkPipelineLayoutCreateInfo pipelineLayoutInfo = vulkan_get_pipelinelayout_createinfo(&vk->descriptorSetLayout, 1);
+    
     if (vkCreatePipelineLayout(vk->device, &pipelineLayoutInfo, 0, &vk->graphicsPipelineLayout) != VK_SUCCESS)
     {
         fatal_error("Failed to create pipeline layout!");

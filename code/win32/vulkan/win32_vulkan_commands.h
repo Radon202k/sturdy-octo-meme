@@ -18,7 +18,7 @@ vulkan_get_commandpool_createinfo(vulkan_context *vk)
 }
 
 internal VkCommandBufferAllocateInfo
-vulkan_get_commandbuffer_allocateinfo(vulkan_context *vk)
+vulkan_get_commandbuffer_allocateinfo(vulkan_context *vk, u32 count)
 {
     VkCommandBufferAllocateInfo allocInfo = 
     {
@@ -26,20 +26,20 @@ vulkan_get_commandbuffer_allocateinfo(vulkan_context *vk)
         .pNext = 0,
         .commandPool = vk->commandPool,
         .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
-        .commandBufferCount = vk->commandBuffers.count,
+        .commandBufferCount = count,
     };
     
     return allocInfo;
 }
 
 internal VkCommandBufferBeginInfo
-vulkan_get_commandbuffer_begininfo(void)
+vulkan_get_commandbuffer_begininfo(VkCommandBufferUsageFlags flags)
 {
     VkCommandBufferBeginInfo beginInfo = 
     {
         .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
         .pNext = 0,
-        .flags = 0,
+        .flags = flags,
         .pInheritanceInfo = 0,
     };
     
@@ -63,7 +63,8 @@ vulkan_make_command_buffers(vulkan_context *vk)
     u32 count = vk->swapChain.frameBuffers.count;
     vk->commandBuffers = make_typeless_vector(count, sizeof(VkCommandBuffer));
     
-    VkCommandBufferAllocateInfo allocInfo = vulkan_get_commandbuffer_allocateinfo(vk);
+    VkCommandBufferAllocateInfo allocInfo = 
+        vulkan_get_commandbuffer_allocateinfo(vk, vk->commandBuffers.count);
     
     if (vkAllocateCommandBuffers(vk->device, &allocInfo, vk->commandBuffers.data) != VK_SUCCESS)
     {
@@ -76,7 +77,7 @@ vulkan_make_command_buffers(vulkan_context *vk)
     {
         VkFramebuffer frameBuffer = ((VkFramebuffer *)vk->swapChain.frameBuffers.data)[i];
         
-        VkCommandBufferBeginInfo beginInfo = vulkan_get_commandbuffer_begininfo();
+        VkCommandBufferBeginInfo beginInfo = vulkan_get_commandbuffer_begininfo(0);
         VkCommandBuffer commandBuffer = ((VkCommandBuffer *)vk->commandBuffers.data)[i];
         
         if (vkBeginCommandBuffer(commandBuffer, &beginInfo) != VK_SUCCESS)
@@ -90,7 +91,19 @@ vulkan_make_command_buffers(vulkan_context *vk)
         
         vkCmdBeginRenderPass(commandBuffer, &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
         vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vk->graphicsPipeline);
-        vkCmdDraw(commandBuffer, 3, 1, 0, 0);
+        
+        VkBuffer vertexBuffers[] = {vk->vertexBuffer};
+        VkDeviceSize offsets[] = {0};
+        vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
+        
+        vkCmdBindIndexBuffer(commandBuffer, vk->indexBuffer, 0, VK_INDEX_TYPE_UINT16);
+        
+        VkDescriptorSet descriptorSet = ((VkDescriptorSet *)vk->descriptorSets.data)[i];
+        
+        vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vk->graphicsPipelineLayout, 0, 1, &descriptorSet, 0, 0);
+        
+        vkCmdDrawIndexed(commandBuffer, vk->indices.count, 1, 0, 0, 0);
+        
         vkCmdEndRenderPass(commandBuffer);
         
         if (vkEndCommandBuffer(commandBuffer) != VK_SUCCESS)

@@ -16,5 +16,6 @@ global os_globals os;
 #include "win32_window.h"
 #include "win32_mouse.h"
 #include "win32_events.h"
+#include "win32_time.h"
 
 #endif //WIN32_CORE_H

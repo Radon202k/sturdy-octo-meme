@@ -3,6 +3,19 @@
 #ifndef WIN32_VULKAN_TYPES_H
 #define WIN32_VULKAN_TYPES_H
 
+typedef struct vulkan_ubo
+{
+    mat4 model;
+    mat4 view;
+    mat4 proj;
+} vulkan_ubo;
+
+typedef struct vulkan_vertex
+{
+    v2 pos;
+    v3 color;
+} vulkan_vertex;
+
 typedef struct vulkan_swapchain_support_details
 {
     VkSurfaceCapabilitiesKHR capabilities;
@@ -47,11 +60,22 @@ typedef struct vulkan_context
     u32 deviceQueueFamilyIndex;
     VkSurfaceKHR surface;
     vulkan_swapchain swapChain;
+    VkDescriptorSetLayout descriptorSetLayout;
     VkPipelineLayout graphicsPipelineLayout;
     VkRenderPass renderPass;
     VkPipeline graphicsPipeline;
     VkCommandPool commandPool;
     typeless_vector commandBuffers;
+    typeless_vector vertices;
+    typeless_vector indices;
+    VkBuffer vertexBuffer;
+    VkDeviceMemory vertexBufferMemory;
+    VkBuffer indexBuffer;
+    VkDeviceMemory indexBufferMemory;
+    typeless_vector uniformBuffers;
+    typeless_vector uniformBuffersMemory;
+    VkDescriptorPool descriptorPool;
+    typeless_vector descriptorSets;
     
     // Arrays of required extensions defined by user
     string_array requiredInstanceExtensions;

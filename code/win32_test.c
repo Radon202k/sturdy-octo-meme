@@ -9,11 +9,19 @@ WIN32_ENTRY()
     // Init renderer
     vulkan_init(&os.vk);
     
+    
     win32_show_window(os.vk.hwnd);
     
     // Main loop
+    LARGE_INTEGER lastCounter = win32_get_perfcounter();
     while(os.window_is_open)
     {
+        LARGE_INTEGER counter = win32_get_perfcounter();
+        f32 elapsedTime = win32_get_elapsed_time(lastCounter, counter);
+        lastCounter = counter;
+        
+        
+        
         // Handle OS events
         win32_poll_messages();
         
