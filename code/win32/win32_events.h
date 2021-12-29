@@ -41,6 +41,11 @@ WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 #ifdef VULKAN_RENDERER
                 os.vk.swapChain.frameBufferResized = 1;
 #endif
+                
+#ifdef OPENGL_RENDERER
+                os.gl.windowWidth = LOWORD(lParam);
+                os.gl.windowHeight = HIWORD(lParam);
+#endif
             }
             else
             {

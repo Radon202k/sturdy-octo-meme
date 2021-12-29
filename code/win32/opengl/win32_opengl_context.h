@@ -138,4 +138,18 @@ opengl_make_modern_context(opengl_context *gl)
 #endif
 }
 
+internal void
+opengl_set_global_state(opengl_context *gl)
+{
+    // Enable alpha blending
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    
+    // Disble depth testing
+    glDisable(GL_DEPTH_TEST);
+    
+    // Disable culling
+    glDisable(GL_CULL_FACE);
+}
+
 #endif //WIN32_OPENGL_CONTEXT_H

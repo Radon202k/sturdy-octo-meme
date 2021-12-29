@@ -32,7 +32,8 @@ read_entire_file(char *fileName)
     
     if (file)
     {
-        result.byteSize = get_file_size(file);
+        u32 fileSize = get_file_size(file);
+        result.byteSize = fileSize + 1;
         
         result.data = (char *)malloc(result.byteSize * sizeof(char));
         size_t bytesRead = fread(result.data, 1, result.byteSize, file);
@@ -40,6 +41,8 @@ read_entire_file(char *fileName)
         if (bytesRead > 0 && bytesRead == result.byteSize)
         {
             result.exists = 1;
+            
+            result.data[fileSize] = 0;
         }
         
         fclose(file);
