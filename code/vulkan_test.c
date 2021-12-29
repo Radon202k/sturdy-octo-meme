@@ -1,15 +1,16 @@
-#define OPENGL_RENDERER
+#define VULKAN_USE_VALIDATION_LAYER
 #include "win32/win32_core.h"
 
 WIN32_ENTRY()
 {
-    opengl_init(&os.gl, 0, 0, 500, 500, "Minecraft clone");
+    // Create window
+    os.vk.hwnd = win32_make_window(0, 0, 500, 500, "Minecraft clone");
     
-    os.window_is_open = 1;
+    // Init renderer
+    vulkan_init(&os.vk);
     
-    LARGE_INTEGER perfFrequency;
-    QueryPerformanceFrequency(&perfFrequency);
-    os.perfFrequency = (f32)perfFrequency.QuadPart;
+    
+    win32_show_window(os.vk.hwnd);
     
     // Main loop
     LARGE_INTEGER lastCounter = win32_get_perfcounter();
@@ -19,14 +20,16 @@ WIN32_ENTRY()
         f32 elapsedTime = win32_get_elapsed_time(lastCounter, counter);
         lastCounter = counter;
         
+        
+        
         // Handle OS events
         win32_poll_messages();
         
-        opengl_draw_frame(&os.gl);
+        vulkan_draw_frame(&os.vk);
     }
     
     // Renderer cleanup
-    opengl_cleanup(&os.gl);
+    vulkan_cleanup(&os.vk);
     
     return 0;
 }

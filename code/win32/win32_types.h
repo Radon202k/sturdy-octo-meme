@@ -23,7 +23,15 @@ typedef struct os_globals
 {
     b32 initialized;
     b32 window_is_open;
+    
+#ifdef VULKAN_RENDERER
     vulkan_context vk;
+#endif
+    
+#ifdef OPENGL_RENDERER
+    opengl_context gl;
+#endif
+    
     os_mouse mouse;
     
     f32 perfFrequency;

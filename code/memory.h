@@ -63,4 +63,18 @@ string_equal(char *a, char *b)
     return 0;
 }
 
+internal b32
+strings_are_equal(char* src, char* dst, size_t dstlen)
+{
+    while (*src && dstlen-- && *dst)
+    {
+        if (*src++ != *dst++)
+        {
+            return 0;
+        }
+    }
+    
+    return (dstlen && *src == *dst) || (!dstlen && *src == 0);
+}
+
 #endif //MEMORY_H

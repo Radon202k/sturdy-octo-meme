@@ -66,14 +66,7 @@ win32_make_window(u32 x, u32 y, u32 w, u32 h, char *title)
                                rect.bottom - rect.top,
                                0, 0, GetModuleHandle(0), 0);
     
-    if (hwnd)
-    {
-        os.window_is_open = 1;
-        LARGE_INTEGER perfFrequency;
-        QueryPerformanceFrequency(&perfFrequency);
-        os.perfFrequency = (f32)perfFrequency.QuadPart;
-    }
-    else
+    if (!hwnd)
     {
         fatal_error("Failed to create window.");
     }
@@ -91,12 +84,6 @@ internal void
 win32_hide_window(HWND hwnd)
 {
     ShowWindow(hwnd, 0);
-}
-
-internal void
-win32_close_window(void)
-{
-    os.window_is_open = 0;
 }
 
 #endif //WIN32_WINDOW_H

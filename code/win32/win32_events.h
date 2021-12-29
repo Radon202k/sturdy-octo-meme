@@ -38,7 +38,9 @@ WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
             // Avoid unecessary swapchain recreation on app startup
             if (os.initialized)
             {
+#ifdef VULKAN_RENDERER
                 os.vk.swapChain.frameBufferResized = 1;
+#endif
             }
             else
             {
@@ -49,7 +51,7 @@ WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
         case WM_CLOSE:
         case WM_DESTROY:
         {
-            win32_close_window();
+            os.window_is_open = 0;
         } break;
         
         case WM_MOUSEMOVE:
