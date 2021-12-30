@@ -22,7 +22,7 @@ WIN32_ENTRY()
         // Handle OS events
         win32_poll_messages();
         
-        opengl_draw_frame(&os.gl);
+        opengl_draw_frame(&os.gl, &os.mouse);
     }
     
     // Renderer cleanup

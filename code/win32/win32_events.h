@@ -1,7 +1,6 @@
 #ifndef WIN32_EVENTS_H
 #define WIN32_EVENTS_H
 
-
 internal void
 win32_clear_mouse_buttons(void)
 {

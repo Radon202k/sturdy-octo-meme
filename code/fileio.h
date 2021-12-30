@@ -42,7 +42,7 @@ read_entire_file(char *fileName)
         {
             result.exists = 1;
             
-            result.data[fileSize] = 0;
+            result.data[fileSize] = '\0';
         }
         
         fclose(file);

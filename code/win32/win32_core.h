@@ -8,6 +8,7 @@
 
 #include "win32_utils.h"
 #include "win32_window.h"
+#include "win32_types.h"
 
 #ifdef VULKAN_RENDERER
 #include "vulkan/win32_vulkan.h"
@@ -16,8 +17,24 @@
 #ifdef OPENGL_RENDERER
 #include "opengl/win32_opengl.h"
 #endif
-
-#include "win32_types.h"
+typedef struct os_globals
+{
+    b32 initialized;
+    b32 window_is_open;
+    
+#ifdef VULKAN_RENDERER
+    vulkan_context vk;
+#endif
+    
+#ifdef OPENGL_RENDERER
+    opengl_context gl;
+#endif
+    
+    os_mouse mouse;
+    
+    f32 perfFrequency;
+    
+} os_globals;
 
 global os_globals os;
 

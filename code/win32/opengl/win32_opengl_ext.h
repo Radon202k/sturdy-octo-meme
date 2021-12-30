@@ -18,7 +18,7 @@ X(PFNGLGETPROGRAMINFOLOGPROC,        glGetProgramInfoLog        ) \
 X(PFNGLGENPROGRAMPIPELINESPROC,      glGenProgramPipelines      ) \
 X(PFNGLUSEPROGRAMSTAGESPROC,         glUseProgramStages         ) \
 X(PFNGLBINDPROGRAMPIPELINEPROC,      glBindProgramPipeline      ) \
-X(PFNGLPROGRAMUNIFORMMATRIX2FVPROC,  glProgramUniformMatrix2fv  ) \
+X(PFNGLPROGRAMUNIFORMMATRIX2FVPROC,  glProgramUniformMatrix4fv  ) \
 X(PFNGLBINDTEXTUREUNITPROC,          glBindTextureUnit          ) \
 X(PFNGLCREATETEXTURESPROC,           glCreateTextures           ) \
 X(PFNGLTEXTUREPARAMETERIPROC,        glTextureParameteri        ) \

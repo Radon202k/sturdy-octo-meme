@@ -52,11 +52,11 @@ opengl_prepare_frame(opengl_context *gl)
 }
 
 internal void
-opengl_draw_frame(opengl_context *gl)
+opengl_draw_frame(opengl_context *gl, os_mouse *mouse)
 {
     opengl_prepare_frame(gl);
     
-    opengl_upload_uniform_buffer_data(gl);
+    opengl_upload_uniforms(gl, mouse);
     
     // Activate shaders for next draw call
     glBindProgramPipeline(gl->pipeline);
@@ -69,7 +69,7 @@ opengl_draw_frame(opengl_context *gl)
     glBindTextureUnit(s_texture, gl->texture);
     
     // Draw 3 vertices as triangle
-    glDrawArrays(GL_TRIANGLES, 0, 3);
+    glDrawArrays(GL_TRIANGLES, 0, 12);
     
     // Swap the buffers to show output
     if (!SwapBuffers(gl->hdc))

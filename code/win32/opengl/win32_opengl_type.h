@@ -5,7 +5,7 @@
 
 typedef struct opengl_vertex
 {
-    f32 position[2];
+    f32 position[3];
     f32 uv[2];
     f32 color[3];
     GLuint texture;

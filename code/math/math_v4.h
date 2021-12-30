@@ -21,6 +21,12 @@ typedef union v4
         float a;
     };
     
+    struct
+    {
+        v3 xyz;
+        float ignored;
+    };
+    
     float data[4];
 } v4;
 
@@ -33,6 +39,20 @@ V4(f32 x, f32 y, f32 z, f32 w)
         .x = x,
         .y = y,
         .z = z,
+        .w = w,
+    };
+    
+    return result;
+}
+
+inline v4
+V3ToV4(v3 vec3, f32 w)
+{
+    v4 result = 
+    {
+        .x = vec3.x,
+        .y = vec3.y,
+        .z = vec3.z,
         .w = w,
     };
     

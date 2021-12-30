@@ -119,6 +119,13 @@ v3_mul(v3 a, f32 k)
     return result;
 }
 
+inline v3
+v3_div(v3 a, f32 k)
+{
+    v3 result = v3_mul(a, 1.0f / k);
+    return result;
+}
+
 inline f32
 v3_lengthSq(v3 a)
 {

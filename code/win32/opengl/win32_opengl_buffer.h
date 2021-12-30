@@ -8,9 +8,33 @@ opengl_make_buffers(opengl_context *gl)
 {
     opengl_vertex data[] =
     {
-        { { -0.00f, +0.75f }, { 25.0f, 50.0f }, { 1, 0, 0 } },
-        { { +0.75f, -0.50f }, {  0.0f,  0.0f }, { 0, 1, 0 } },
-        { { -0.75f, -0.50f }, { 50.0f,  0.0f }, { 0, 0, 1 } },
+        // Lower face
+        { { -0.5f, -0.5f, -0.5f }, { 25.0f, 50.0f }, { 1, 0, 0 } },
+        { { +0.5f, -0.5f, -0.5f }, {  0.0f,  0.0f }, { 0, 1, 0 } },
+        { { +0.5f, +0.5f, -0.5f }, { 50.0f,  0.0f }, { 0, 0, 1 } },
+        
+        { { -0.5f, -0.5f, -0.5f }, { 25.0f, 50.0f }, { 1, 0, 0 } },
+        { { +0.5f, +0.5f, -0.5f }, {  0.0f,  0.0f }, { 0, 0, 1 } },
+        { { -0.5f, +0.5f, -0.5f }, { 50.0f,  0.0f }, { 0, 1, 0 } },
+        
+        // Upper face
+        { { -0.5f, -0.5f, +0.5f }, { 25.0f, 50.0f }, { 1, 0, 0 } },
+        { { +0.5f, -0.5f, +0.5f }, {  0.0f,  0.0f }, { 0, 1, 0 } },
+        { { +0.5f, +0.5f, +0.5f }, { 50.0f,  0.0f }, { 0, 0, 1 } },
+        
+        { { -0.5f, -0.5f, +0.5f }, { 25.0f, 50.0f }, { 1, 0, 0 } },
+        { { +0.5f, +0.5f, +0.5f }, {  0.0f,  0.0f }, { 0, 0, 1 } },
+        { { -0.5f, +0.5f, +0.5f }, { 50.0f,  0.0f }, { 0, 1, 0 } },
+        
+        // Front face
+        { { -0.5f, -0.5f, +0.5f }, { 25.0f, 50.0f }, { 1, 0, 0 } },
+        { { +0.5f, -0.5f, +0.5f }, {  0.0f,  0.0f }, { 0, 1, 0 } },
+        { { +0.5f, +0.5f, +0.5f }, { 50.0f,  0.0f }, { 0, 0, 1 } },
+        
+        { { -0.5f, -0.5f, +0.5f }, { 25.0f, 50.0f }, { 1, 0, 0 } },
+        { { +0.5f, +0.5f, +0.5f }, {  0.0f,  0.0f }, { 0, 0, 1 } },
+        { { -0.5f, +0.5f, +0.5f }, { 50.0f,  0.0f }, { 0, 1, 0 } },
+        
     };
     
     // Vertex buffer
@@ -26,7 +50,7 @@ opengl_make_buffers(opengl_context *gl)
     
     // Vao's input layout
     GLint a_pos = 0;
-    glVertexArrayAttribFormat(gl->vao, a_pos, 2, GL_FLOAT, GL_FALSE, offsetof(opengl_vertex, position));
+    glVertexArrayAttribFormat(gl->vao, a_pos, 3, GL_FLOAT, GL_FALSE, offsetof(opengl_vertex, position));
     glVertexArrayAttribBinding(gl->vao, a_pos, vbuf_index);
     glEnableVertexArrayAttrib(gl->vao, a_pos);
     
@@ -42,20 +66,29 @@ opengl_make_buffers(opengl_context *gl)
 }
 
 internal void
-opengl_upload_uniform_buffer_data(opengl_context *gl)
+opengl_upload_uniforms(opengl_context *gl, os_mouse *mouse)
 {
-    gl->angle += 0.002f * 2.0f * 3.1415f / 20.0f; // full rotation in 20 seconds
+    gl->angle += 0.02f * 2.0f * 3.1415f / 20.0f; // full rotation in 20 seconds
     gl->angle = fmodf(gl->angle, 2.0f * 3.1415f);
     
     f32 aspect = (f32)gl->windowHeight / gl->windowWidth;
-    f32 matrix[] =
-    {
-        cosf(gl->angle) * aspect, -sinf(gl->angle),
-        sinf(gl->angle) * aspect,  cosf(gl->angle),
-    };
     
-    GLint u_matrix = 0;
-    glProgramUniformMatrix2fv(gl->vShader, u_matrix, 1, GL_FALSE, matrix);
+    mat4_inv proj = mat4_perspective(aspect, 0.8f, 0.1f, 100.0f);
+    
+    f32 dolly = 2;
+    
+    mat4 cameraM = build_camera_object_matrix(V3(0,0,0), 0.02f * mouse->pos.x, 0.02f * mouse->pos.y, dolly);
+    
+    mat4_inv view = camera_transform(mat4_get_column(cameraM, 0),
+                                     mat4_get_column(cameraM, 1),
+                                     mat4_get_column(cameraM, 2),
+                                     mat4_get_column(cameraM, 3));
+    
+    mat4 projViewMat = mat4_transpose(mat4_mul(proj.forward, view.forward));
+    
+    GLint projview = 0;
+    // glProgramUniformMatrix4fv(gl->vShader, projview, 1, GL_FALSE, (f32 *)identity.E);
+    glProgramUniformMatrix4fv(gl->vShader, projview, 1, GL_FALSE, (f32 *)projViewMat.E);
 }
 
 #endif //WIN32_OPENGL_VERTEXBUFFER_H
