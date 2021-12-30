@@ -11,6 +11,21 @@ typedef struct opengl_vertex
     GLuint texture;
 } opengl_vertex;
 
+typedef struct opengl_mesh
+{
+    opengl_vertex *vertices;
+    u32 vertexCount;
+} opengl_mesh;
+
+typedef struct opengl_mesh_indexed
+{
+    opengl_vertex *vertices;
+    u32 vertexCount;
+    
+    u32 *indices;
+    u32 indexCount;
+} opengl_mesh_indexed;
+
 typedef struct opengl_context
 {
     HWND hwnd;
@@ -20,11 +35,14 @@ typedef struct opengl_context
     HGLRC hglrc;
     GLuint vao;
     GLuint vbo;
+    GLuint ebo;
     GLuint texture;
     GLuint vShader;
     GLuint fShader;
     GLuint pipeline;
     f32 angle;
+    u32 vboVertexCount;
+    u32 vboIndexCount;
     
     PFNWGLCHOOSEPIXELFORMATARBPROC wglChoosePixelFormatARB;
     PFNWGLCREATECONTEXTATTRIBSARBPROC wglCreateContextAttribsARB;

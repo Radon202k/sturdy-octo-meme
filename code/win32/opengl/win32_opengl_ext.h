@@ -5,7 +5,9 @@
 
 #define GL_FUNCTIONS(X) \
 X(PFNGLCREATEBUFFERSPROC,            glCreateBuffers            ) \
+X(PFNGLBINDBUFFERPROC,               glBindBuffer               ) \
 X(PFNGLNAMEDBUFFERSTORAGEPROC,       glNamedBufferStorage       ) \
+X(PFNGLNAMEDBUFFERDATAPROC,          glNamedBufferData          ) \
 X(PFNGLBINDVERTEXARRAYPROC,          glBindVertexArray          ) \
 X(PFNGLCREATEVERTEXARRAYSPROC,       glCreateVertexArrays       ) \
 X(PFNGLVERTEXARRAYATTRIBBINDINGPROC, glVertexArrayAttribBinding ) \
@@ -18,7 +20,7 @@ X(PFNGLGETPROGRAMINFOLOGPROC,        glGetProgramInfoLog        ) \
 X(PFNGLGENPROGRAMPIPELINESPROC,      glGenProgramPipelines      ) \
 X(PFNGLUSEPROGRAMSTAGESPROC,         glUseProgramStages         ) \
 X(PFNGLBINDPROGRAMPIPELINEPROC,      glBindProgramPipeline      ) \
-X(PFNGLPROGRAMUNIFORMMATRIX2FVPROC,  glProgramUniformMatrix4fv  ) \
+X(PFNGLPROGRAMUNIFORMMATRIX4FVPROC,  glProgramUniformMatrix4fv  ) \
 X(PFNGLBINDTEXTUREUNITPROC,          glBindTextureUnit          ) \
 X(PFNGLCREATETEXTURESPROC,           glCreateTextures           ) \
 X(PFNGLTEXTUREPARAMETERIPROC,        glTextureParameteri        ) \

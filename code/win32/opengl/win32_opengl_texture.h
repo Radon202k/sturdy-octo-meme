@@ -21,8 +21,8 @@ opengl_make_textures(opengl_context *gl)
 {
     u32 pixels[] =
     {
-        0x80000000, 0xffffffff,
-        0xffffffff, 0x80000000,
+        0xffffffff, 0xffAAAAAA,
+        0xffAAAAAA, 0xffffffff,
     };
     
     GLsizei width = 2;

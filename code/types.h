@@ -41,4 +41,9 @@ typedef struct typeless_vector
     void *data;
 } typeless_vector;
 
+#define kilobytes(value) ((value) * 1024)
+#define megabytes(value) (kilobytes(value) * 1024)
+#define gigabytes(value) (megabytes(value) * 1024LL)
+#define terabytes(value) (gigabytes(value) * 1024LL)
+
 #endif //TYPES_H

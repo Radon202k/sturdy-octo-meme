@@ -3,7 +3,8 @@
 
 WIN32_ENTRY()
 {
-    opengl_init(&os.gl, 0, 0, 500, 500, "Minecraft clone");
+    win32_init();
+    opengl_init(&os.gl, 0, 0, 500, 500, "Minecraft clone", &os.mainArena);
     
     os.window_is_open = 1;
     

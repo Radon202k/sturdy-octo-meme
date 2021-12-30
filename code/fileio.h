@@ -28,7 +28,7 @@ read_entire_file(char *fileName)
     binary_file result = {0};
     
     FILE *file = 0;
-    fopen_s(&file, fileName, "rb");
+    fopen_s(&file, fileName, "r");
     
     if (file)
     {
@@ -36,7 +36,7 @@ read_entire_file(char *fileName)
         result.byteSize = fileSize + 1;
         
         result.data = (char *)malloc(result.byteSize * sizeof(char));
-        size_t bytesRead = fread(result.data, 1, result.byteSize, file);
+        size_t bytesRead = fread(result.data, 1, fileSize, file);
         
         if (bytesRead > 0 && bytesRead == result.byteSize)
         {

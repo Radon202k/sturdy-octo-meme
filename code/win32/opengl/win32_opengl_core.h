@@ -7,12 +7,13 @@
 #include "win32_opengl_debug.h"
 #include "win32_opengl_ext.h"
 #include "win32_opengl_context.h"
+#include "win32_opengl_mesh.h"
 #include "win32_opengl_buffer.h"
 #include "win32_opengl_texture.h"
 #include "win32_opengl_shader.h"
 
 internal void
-opengl_init(opengl_context *gl, u32 x, u32 y, u32 w, u32 h, char *title)
+opengl_init(opengl_context *gl, u32 x, u32 y, u32 w, u32 h, char *title, memory_arena *arena)
 {
     opengl_prepare_modern_context(gl);
     
@@ -26,7 +27,7 @@ opengl_init(opengl_context *gl, u32 x, u32 y, u32 w, u32 h, char *title)
     
     opengl_make_modern_context(gl);
     
-    opengl_make_buffers(gl);
+    opengl_make_buffers(gl, arena);
     
     opengl_make_textures(gl);
     
@@ -68,8 +69,11 @@ opengl_draw_frame(opengl_context *gl, os_mouse *mouse)
     GLint s_texture = 0; // texture unit that sampler2D will use in GLSL code
     glBindTextureUnit(s_texture, gl->texture);
     
+    // Bind index buffer
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, gl->ebo);
+    
     // Draw 3 vertices as triangle
-    glDrawArrays(GL_TRIANGLES, 0, 12);
+    glDrawElements(GL_TRIANGLES, gl->vboIndexCount, GL_UNSIGNED_INT, 0);
     
     // Swap the buffers to show output
     if (!SwapBuffers(gl->hdc))

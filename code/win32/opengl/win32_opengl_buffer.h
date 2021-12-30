@@ -4,42 +4,56 @@
 #define WIN32_OPENGL_VERTEXBUFFER_H
 
 internal void
-opengl_make_buffers(opengl_context *gl)
+opengl_make_buffers(opengl_context *gl, memory_arena *arena)
 {
-    opengl_vertex data[] =
+    u32 vertexCount = 0;
+    u32 indexCount = 0;
+    
+    u32 maxVertexCount = 500000;
+    u32 maxIndexCount = 500000;
+    
+    opengl_vertex *vertices = push_array(arena, maxVertexCount, opengl_vertex, 4);
+    u32 *indices = push_array(arena, maxIndexCount, u32, 4);
+    
+    for (u32 k = 0;
+         k < 16;
+         ++k)
     {
-        // Lower face
-        { { -0.5f, -0.5f, -0.5f }, { 25.0f, 50.0f }, { 1, 0, 0 } },
-        { { +0.5f, -0.5f, -0.5f }, {  0.0f,  0.0f }, { 0, 1, 0 } },
-        { { +0.5f, +0.5f, -0.5f }, { 50.0f,  0.0f }, { 0, 0, 1 } },
-        
-        { { -0.5f, -0.5f, -0.5f }, { 25.0f, 50.0f }, { 1, 0, 0 } },
-        { { +0.5f, +0.5f, -0.5f }, {  0.0f,  0.0f }, { 0, 0, 1 } },
-        { { -0.5f, +0.5f, -0.5f }, { 50.0f,  0.0f }, { 0, 1, 0 } },
-        
-        // Upper face
-        { { -0.5f, -0.5f, +0.5f }, { 25.0f, 50.0f }, { 1, 0, 0 } },
-        { { +0.5f, -0.5f, +0.5f }, {  0.0f,  0.0f }, { 0, 1, 0 } },
-        { { +0.5f, +0.5f, +0.5f }, { 50.0f,  0.0f }, { 0, 0, 1 } },
-        
-        { { -0.5f, -0.5f, +0.5f }, { 25.0f, 50.0f }, { 1, 0, 0 } },
-        { { +0.5f, +0.5f, +0.5f }, {  0.0f,  0.0f }, { 0, 0, 1 } },
-        { { -0.5f, +0.5f, +0.5f }, { 50.0f,  0.0f }, { 0, 1, 0 } },
-        
-        // Front face
-        { { -0.5f, -0.5f, +0.5f }, { 25.0f, 50.0f }, { 1, 0, 0 } },
-        { { +0.5f, -0.5f, +0.5f }, {  0.0f,  0.0f }, { 0, 1, 0 } },
-        { { +0.5f, +0.5f, +0.5f }, { 50.0f,  0.0f }, { 0, 0, 1 } },
-        
-        { { -0.5f, -0.5f, +0.5f }, { 25.0f, 50.0f }, { 1, 0, 0 } },
-        { { +0.5f, +0.5f, +0.5f }, {  0.0f,  0.0f }, { 0, 0, 1 } },
-        { { -0.5f, +0.5f, +0.5f }, { 50.0f,  0.0f }, { 0, 1, 0 } },
-        
-    };
+        for (u32 j = 0;
+             j < 16;
+             ++j)
+        {
+            for (u32 i = 0;
+                 i < 16;
+                 ++i)
+            {
+                f32 scale = 0.2f;
+                v3 size = {scale, scale, scale};
+                v3 offset = {(f32)i * size.x, (f32)j * size.y, (f32)k * size.z};
+                opengl_mesh_indexed cube = opengl_make_cube_mesh_indexed(offset, size, arena, vertexCount);
+                
+                memcpy(vertices + vertexCount, cube.vertices, sizeof(opengl_vertex) * cube.vertexCount);
+                memcpy(indices + indexCount, cube.indices, sizeof(u32) * cube.indexCount);
+                
+                // Register the amount of vertices added
+                vertexCount += cube.vertexCount;
+                indexCount += cube.indexCount;
+            }
+        }
+    }
+    
+    // Save vertex count to know how many triangles to draw
+    gl->vboVertexCount = vertexCount;
+    gl->vboIndexCount = indexCount;
     
     // Vertex buffer
     glCreateBuffers(1, &gl->vbo);
-    glNamedBufferStorage(gl->vbo, sizeof(data), data, 0);
+    glNamedBufferStorage(gl->vbo, sizeof(opengl_vertex) * vertexCount, vertices, 0);
+    
+    // Index buffer
+    glCreateBuffers(1, &gl->ebo);
+    // glNamedBufferStorage(gl->ebo, sizeof(u32) * indexCount, indices, 0);
+    glNamedBufferData(gl->ebo, sizeof(u32) * indexCount, indices, GL_STATIC_DRAW);
     
     // Vertex array
     glCreateVertexArrays(1, &gl->vao);
@@ -77,7 +91,7 @@ opengl_upload_uniforms(opengl_context *gl, os_mouse *mouse)
     
     f32 dolly = 2;
     
-    mat4 cameraM = build_camera_object_matrix(V3(0,0,0), 0.02f * mouse->pos.x, 0.02f * mouse->pos.y, dolly);
+    mat4 cameraM = build_camera_object_matrix(V3(0,0,0), 0.02f * mouse->pos.x, -0.02f * mouse->pos.y, dolly);
     
     mat4_inv view = camera_transform(mat4_get_column(cameraM, 0),
                                      mat4_get_column(cameraM, 1),
