@@ -11,6 +11,7 @@
 #include "win32_opengl_buffer.h"
 #include "win32_opengl_texture.h"
 #include "win32_opengl_shader.h"
+#include "win32_opengl_renderpass.h"
 
 internal void
 opengl_init(opengl_context *gl, u32 x, u32 y, u32 w, u32 h, char *title, memory_arena *arena)
@@ -26,10 +27,6 @@ opengl_init(opengl_context *gl, u32 x, u32 y, u32 w, u32 h, char *title, memory_
     gl->hdc = GetDC(gl->hwnd);
     
     opengl_make_modern_context(gl);
-    
-    opengl_make_buffers(gl, arena);
-    
-    opengl_make_textures(gl);
     
     opengl_make_shaders(gl);
     
@@ -53,27 +50,25 @@ opengl_prepare_frame(opengl_context *gl)
 }
 
 internal void
-opengl_draw_frame(opengl_context *gl, os_mouse *mouse)
+opengl_draw_frame(opengl_context *gl, mat4 *view)
 {
     opengl_prepare_frame(gl);
     
-    opengl_upload_uniforms(gl, mouse);
+    opengl_upload_uniforms(gl, view);
     
     // Activate shaders for next draw call
     glBindProgramPipeline(gl->pipeline);
     
-    // Provide vertex input
-    glBindVertexArray(gl->vao);
+    GLint textureUnit = 0;
+    GLuint textureHandle = gl->texture;
     
-    // Bind texture to texture unit
-    GLint s_texture = 0; // texture unit that sampler2D will use in GLSL code
-    glBindTextureUnit(s_texture, gl->texture);
-    
-    // Bind index buffer
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, gl->ebo);
-    
-    // Draw 3 vertices as triangle
-    glDrawElements(GL_TRIANGLES, gl->vboIndexCount, GL_UNSIGNED_INT, 0);
+    for (u32 i = 0;
+         i < gl->vertexBuffers.count;
+         ++i)
+    {
+        opengl_vertexbuffer *vertexBuffer = &((opengl_vertexbuffer *)gl->vertexBuffers.data)[i];
+        opengl_renderpass(vertexBuffer, textureUnit, textureHandle);
+    }
     
     // Swap the buffers to show output
     if (!SwapBuffers(gl->hdc))

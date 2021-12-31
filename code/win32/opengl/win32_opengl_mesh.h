@@ -104,7 +104,7 @@ opengl_make_cube_mesh(v3 offset, v3 scale, memory_arena *arena)
 }
 
 internal opengl_mesh_indexed
-opengl_make_cube_mesh_indexed(v3 offset, v3 scale, memory_arena *arena, u32 indexBase)
+opengl_make_cube_mesh_indexed(v3 offset, v3 scale, memory_arena *arena, u32 indexBase, u32 textureType)
 {
     opengl_mesh_indexed cube = opengl_make_mesh_indexed(4*6, 6*6, arena);
     
@@ -117,43 +117,67 @@ opengl_make_cube_mesh_indexed(v3 offset, v3 scale, memory_arena *arena, u32 inde
     f32 minZ = offset.z - 0.5f * scale.z;
     f32 maxZ = offset.z + 0.5f * scale.z;
     
+    u32 atlasX = 16;
+    u32 atlasY = 16;
+    
+    f32 du = 1.0f / (f32)atlasX;
+    f32 dv = 1.0f / (f32)atlasY;
+    
+    f32 minU = 0;
+    f32 maxU = du;
+    
+    f32 minV = 0;
+    f32 maxV = dv;
+    
+    if (textureType == 1)
+    {
+        u32 blockX = 3;
+        u32 blockY = 3;
+        minU = (f32)blockX * du;
+        minV = (f32)blockY * dv;
+        maxU = minU + du;
+        maxV = minV + dv;
+    }
+    
+    f32 g = 0.5f; // gray
+    
     opengl_vertex vertices[] =
     {
         // Front
-        { { minX, minY, maxZ }, {  0.0f,  0.0f }, {1,0,0} }, // 0
-        { { maxX, minY, maxZ }, {  2.5f,  0.0f }, {0,1,0} }, // 1
-        { { maxX, maxY, maxZ }, {  2.5f,  2.5f }, {0,0,1} }, // 2
-        { { minX, maxY, maxZ }, {  0.0f,  2.5f }, {1,1,0} }, // 3
+        { { minX, minY, maxZ }, { minU, minV }, {g,g,g} }, // 0
+        { { maxX, minY, maxZ }, { maxU, minV }, {g,g,g} }, // 1
+        { { maxX, maxY, maxZ }, { maxU, maxV }, {1,1,1} }, // 2
+        { { minX, maxY, maxZ }, { minU, maxV }, {1,1,1} }, // 3
         
         // Back
-        { { minX, maxY, minZ }, {  0.0f,  0.0f }, {1,0,0} }, // 5
-        { { maxX, maxY, minZ }, {  2.5f,  0.0f }, {0,1,0} }, // 4
-        { { maxX, minY, minZ }, {  2.5f,  2.5f }, {0,0,1} }, // 6
-        { { minX, minY, minZ }, {  0.0f,  2.5f }, {1,1,0} }, // 7
+        { { minX, maxY, minZ }, { minU, minV }, {1,1,1} }, // 5
+        { { maxX, maxY, minZ }, { maxU, minV }, {1,1,1} }, // 4
+        { { maxX, minY, minZ }, { maxU, maxV }, {g,g,g} }, // 6
+        { { minX, minY, minZ }, { minU, maxV }, {g,g,g} }, // 7
         
         // Upper
-        { { minX, maxY, maxZ }, {  0.0f,  0.0f }, {1,0,0} }, // 3
-        { { maxX, maxY, maxZ }, {  2.5f,  0.0f }, {0,1,0} }, // 2
-        { { maxX, maxY, minZ }, {  2.5f,  2.5f }, {0,0,1} }, // 4
-        { { minX, maxY, minZ }, {  0.0f,  2.5f }, {1,1,0} }, // 5
+        { { minX, maxY, maxZ }, { minU, minV }, {1,1,1} }, // 3
+        { { maxX, maxY, maxZ }, { maxU, minV }, {1,1,1} }, // 2
+        { { maxX, maxY, minZ }, { maxU, maxV }, {1,1,1} }, // 4
+        { { minX, maxY, minZ }, { minU, maxV }, {1,1,1} }, // 5
         
         // Lower
-        { { minX, minY, minZ }, {  0.0f,  0.0f }, {1,0,0} }, // 7
-        { { maxX, minY, minZ }, {  2.5f,  0.0f }, {0,1,0} }, // 6
-        { { maxX, minY, maxZ }, {  2.5f,  2.5f }, {0,0,1} }, // 1
-        { { minX, minY, maxZ }, {  0.0f,  2.5f }, {1,1,0} }, // 0
+        { { minX, minY, minZ }, { minU, minV }, {g,g,g} }, // 7
+        { { maxX, minY, minZ }, { maxU, minV }, {g,g,g} }, // 6
+        { { maxX, minY, maxZ }, { maxU, maxV }, {g,g,g} }, // 1
+        { { minX, minY, maxZ }, { minU, maxV }, {g,g,g} }, // 0
         
         // Left
-        { { minX, minY, minZ }, {  0.0f,  0.0f }, {1,0,0} }, // 7
-        { { minX, minY, maxZ }, {  2.5f,  0.0f }, {0,1,0} }, // 0
-        { { minX, maxY, maxZ }, {  2.5f,  2.5f }, {0,0,1} }, // 3
-        { { minX, maxY, minZ }, {  0.0f,  2.5f }, {1,1,0} }, // 5
+        { { minX, minY, minZ }, { minU, minV }, {g,g,g} }, // 7
+        { { minX, minY, maxZ }, { maxU, minV }, {g,g,g} }, // 0
+        { { minX, maxY, maxZ }, { maxU, maxV }, {1,1,1} }, // 3
+        { { minX, maxY, minZ }, { minU, maxV }, {1,1,1} }, // 5
         
         // Right
-        { { maxX, minY, maxZ }, {  0.0f,  0.0f }, {1,0,0} }, // 1
-        { { maxX, minY, minZ }, {  2.5f,  0.0f }, {0,1,0} }, // 6
-        { { maxX, maxY, minZ }, {  2.5f,  2.5f }, {0,0,1} }, // 4
-        { { maxX, maxY, maxZ }, {  0.0f,  2.5f }, {1,1,0} }, // 2
+        { { maxX, minY, maxZ }, { minU, minV }, {g,g,g} }, // 1
+        { { maxX, minY, minZ }, { maxU, minV }, {g,g,g} }, // 6
+        { { maxX, maxY, minZ }, { maxU, maxV }, {1,1,1} }, // 4
+        { { maxX, maxY, maxZ }, { minU, maxV }, {1,1,1} }, // 2
     };
     
     u32 indices[] =

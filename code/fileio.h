@@ -38,7 +38,7 @@ read_entire_file(char *fileName)
         result.data = (char *)malloc(result.byteSize * sizeof(char));
         size_t bytesRead = fread(result.data, 1, fileSize, file);
         
-        if (bytesRead > 0 && bytesRead == result.byteSize)
+        if (bytesRead > 0 && bytesRead == (result.byteSize-1))
         {
             result.exists = 1;
             

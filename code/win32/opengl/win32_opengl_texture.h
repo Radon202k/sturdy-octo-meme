@@ -16,19 +16,4 @@ opengl_make_texture(GLuint *handle, GLsizei width, GLsizei height, u32 *pixels)
     glTextureSubImage2D(*handle, 0, 0, 0, width, height, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
 }
 
-internal void
-opengl_make_textures(opengl_context *gl)
-{
-    u32 pixels[] =
-    {
-        0xffffffff, 0xffAAAAAA,
-        0xffAAAAAA, 0xffffffff,
-    };
-    
-    GLsizei width = 2;
-    GLsizei height = 2;
-    
-    opengl_make_texture(&gl->texture, width, height, pixels); 
-}
-
 #endif //WIN32_OPENGL_TEXTURE_H

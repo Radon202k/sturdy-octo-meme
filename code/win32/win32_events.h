@@ -13,6 +13,17 @@ win32_clear_mouse_buttons(void)
 }
 
 internal void
+win32_clear_keyboard_buttons(void)
+{
+    for (u32 i = 0;
+         i < 3;
+         ++i)
+    {
+        os.keyboard.buttons[i].pressed = 0;
+    }
+}
+
+internal void
 win32_poll_messages()
 {
     MSG msg;
@@ -23,6 +34,7 @@ win32_poll_messages()
     }
     
     win32_clear_mouse_buttons();
+    win32_clear_keyboard_buttons();
 }
 
 LRESULT CALLBACK 
@@ -79,6 +91,19 @@ WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
         case WM_MBUTTONUP:
         {
             win32_handle_mousebutton(&os.mouse.buttons[2], msg);
+        } break;
+        
+        case WM_KEYDOWN:
+        case WM_KEYUP:
+        {
+            if (wParam == VK_CONTROL)
+            {
+                win32_handle_keyboardbutton(&os.keyboard.buttons[KEY_CONTROL], msg);
+            }
+            else if (wParam == VK_SPACE)
+            {
+                win32_handle_keyboardbutton(&os.keyboard.buttons[KEY_SPACE], msg);
+            }
         } break;
         
         default:

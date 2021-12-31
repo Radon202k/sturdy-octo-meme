@@ -10,6 +10,8 @@
 #include "math_v3.h"
 #include "math_v4.h"
 #include "math_mat4.h"
+#include "math_transform.h"
 #include "math_camera.h"
+#include "math_noise.h"
 
 #endif //MATH_CORE_H

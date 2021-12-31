@@ -3,70 +3,53 @@
 #ifndef MATH_CAMERA_H
 #define MATH_CAMERA_H
 
-internal mat4_inv
-mat4_perspective(f32 ar, f32 fov, f32 zNear, f32 zFar)
+typedef struct camera_t
 {
-    f32 a = 1.0f;
-    f32 b = ar;
-    f32 c = fov; // NOTE(casey): This should really be called "film back distance"
+    v3 pos;
+    f32 pitch;
+    f32 yaw;
+    f32 roll;
     
-    f32 n = zNear; // NOTE(casey): Near clip plane _distance_
-    f32 f = zFar; // NOTE(casey): Far clip plane _distance_
+    transform_t *targetTransform;
     
-    // NOTE(casey): These are the perspective correct terms, for when you divide by -z
-    f32 d = (n+f) / (n-f);
-    f32 e = (2*f*n) / (n-f);
-    
-    mat4_inv result =
-    {
-        // NOTE(casey): Forward
-        {
-            a*c,  0,  0,  0,
-            0,  b*c,  0,  0,
-            0,    0,  d,  e,
-            0,    0, -1,  0},
-        
-        // NOTE(casey): Inverse
-        {
-            1/(a*c), 0,   0,   0,
-            0, 1/(b*c),   0,   0,
-            0,       0,   0,  -1,
-            0,       0, 1/e, d/e
-        },
-    };
-    
-    return(result);
-}
-
-internal mat4_inv
-camera_transform(v3 X, v3 Y, v3 Z, v3 P)
-{
-    mat4_inv result;
-    
-    mat4 A = mat4_rows_3x3(X, Y, Z);
-    v3 AP = v3_neg(mat4_mul_v3(A, P));
-    A = mat4_translate(A, AP);
-    result.forward = A;
-    
-    v3 iX = v3_div(X, v3_lengthSq(X));
-    v3 iY = v3_div(Y, v3_lengthSq(Y));
-    v3 iZ = v3_div(Z, v3_lengthSq(Z));
-    v3 iP = {AP.x*iX.x + AP.y*iY.x + AP.z*iZ.x,
-        AP.x*iX.y + AP.y*iY.y + AP.z*iZ.y,
-        AP.x*iX.z + AP.y*iY.z + AP.z*iZ.z};
-    
-    mat4 B = mat4_cols_3x3(iX, iY, iZ);
-    B = mat4_translate(B, v3_neg(iP));
-    result.inverse = B;
-    
-    return(result);
-}
+    f32 distanceFromTarget;
+    f32 angleAroundTarget;
+} camera_t;
 
 internal mat4
-build_camera_object_matrix(v3 offset, f32 orbit, f32 pitch, f32 dolly)
+camera_make_view_matrix(camera_t *camera)
 {
-    mat4 result = mat4_mul(mat4_translation(offset),mat4_mul(mat4_zrotation(orbit),mat4_mul(mat4_xrotation(pitch),mat4_translation(V3(0, 0, dolly)))));
-    return(result);
+    mat4 result = mat4_xrotation(camera->pitch);
+    result = mat4_mul(result, mat4_yrotation(camera->yaw));
+    result = mat4_mul(result, mat4_translation(v3_neg(camera->pos)));
+    return result;
+}
+
+internal void
+camera_update(camera_t *camera)
+{
+    f32 horizontalDistance = cosf(camera->pitch) * camera->distanceFromTarget;
+    f32 verticalDistance = sinf(camera->pitch) * camera->distanceFromTarget;
+    
+    v3 targetRot = camera->targetTransform->rotation;
+    v3 targetPos = camera->targetTransform->translation;
+    
+    f32 theta = targetRot.y + camera->angleAroundTarget;
+    
+    f32 offsetX = horizontalDistance * sinf(theta);
+    f32 offsetZ = horizontalDistance * cosf(theta);
+    
+    // Update camera's position
+    v3 camPos = 
+    {
+        .x = targetPos.x - offsetX,
+        .y = targetPos.y + verticalDistance,
+        .z = targetPos.z - offsetZ,
+    };
+    camera->pos = camPos;
+    
+    // yaw
+    camera->yaw = 3.1415f - (targetRot.y + camera->angleAroundTarget);
 }
 
 #endif //MATH_CAMERA_H

@@ -78,6 +78,20 @@ mat4_rows_3x3(v3 x, v3 y, v3 z)
 }
 
 inline mat4
+mat4_translation(v3 T)
+{
+    mat4 R =
+    {
+        {{1, 0, 0, T.x},
+            {0, 1, 0, T.y},
+            {0, 0, 1, T.z},
+            {0, 0, 0, 1}},
+    };
+    
+    return(R);
+}
+
+inline mat4
 mat4_xrotation(f32 Angle)
 {
     f32 c = cosf(Angle);
@@ -111,20 +125,6 @@ mat4_yrotation(f32 Angle)
     return(R);
 }
 
-inline v3
-mat4_get_column(mat4 A, u32 C)
-{
-    v3 R = {A.E[0][C], A.E[1][C], A.E[2][C]};
-    return(R);
-}
-
-inline v3
-mat4_get_row(mat4 A, u32 R)
-{
-    v3 result = {A.E[R][0], A.E[R][1], A.E[R][2]};
-    return(result);
-}
-
 inline mat4
 mat4_zrotation(f32 Angle)
 {
@@ -142,6 +142,36 @@ mat4_zrotation(f32 Angle)
     return(R);
 }
 
+inline mat4
+mat4_scale(v3 scale)
+{
+    mat4 R =
+    {
+        {
+            {scale.x, 0, 0},
+            {0, scale.y, 0, 0},
+            {0, 0, scale.z, 0},
+            {0, 0, 0, 1}
+        },
+    };
+    
+    return(R);
+}
+
+inline v3
+mat4_get_column(mat4 A, u32 C)
+{
+    v3 R = {A.E[0][C], A.E[1][C], A.E[2][C]};
+    return(R);
+}
+
+inline v3
+mat4_get_row(mat4 A, u32 R)
+{
+    v3 result = {A.E[R][0], A.E[R][1], A.E[R][2]};
+    return(result);
+}
+
 internal mat4
 mat4_translate(mat4 a, v3 t)
 {
@@ -152,20 +182,6 @@ mat4_translate(mat4 a, v3 t)
     result.E[2][3] += t.z;
     
     return(result);
-}
-
-inline mat4
-mat4_translation(v3 T)
-{
-    mat4 R =
-    {
-        {{1, 0, 0, T.x},
-            {0, 1, 0, T.y},
-            {0, 0, 1, T.z},
-            {0, 0, 0, 1}},
-    };
-    
-    return(R);
 }
 
 inline mat4
@@ -212,5 +228,38 @@ mat4_mul_v4(mat4 A, v4 P)
     v4 R = mat4_transform(A, P);
     return(R);
 }
+
+internal mat4_inv
+mat4_perspective(f32 ar, f32 fov, f32 zNear, f32 zFar)
+{
+    f32 a = 1.0f;
+    f32 b = ar;
+    f32 c = fov;
+    
+    f32 n = zNear;
+    f32 f = zFar;
+    
+    f32 d = (n+f) / (n-f);
+    f32 e = (2*f*n) / (n-f);
+    
+    mat4_inv result =
+    {
+        {
+            a*c,  0,  0,  0,
+            0,  b*c,  0,  0,
+            0,    0,  d,  e,
+            0,    0, -1,  0},
+        
+        {
+            1/(a*c), 0,   0,   0,
+            0, 1/(b*c),   0,   0,
+            0,       0,   0,  -1,
+            0,       0, 1/e, d/e
+        },
+    };
+    
+    return(result);
+}
+
 
 #endif //MATH_MAT4_H

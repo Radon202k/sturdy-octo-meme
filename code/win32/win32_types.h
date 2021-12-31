@@ -19,5 +19,9 @@ typedef struct os_mouse
     os_button buttons[3];
 } os_mouse;
 
+typedef struct os_keyboard
+{
+    os_button buttons[3];
+} os_keyboard;
 
 #endif //WIN32_TYPES_H

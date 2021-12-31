@@ -8,7 +8,14 @@ typedef struct memory_arena
     u8 *base;
     size_t used;
     size_t size;
+    u32 tempCount;
 } memory_arena;
+
+typedef struct temp_memory
+{
+    memory_arena *arena;
+    size_t usedOld;
+} temp_memory;
 
 typedef struct string_array
 {
@@ -16,6 +23,34 @@ typedef struct string_array
     char **data;
 } string_array;
 
+internal temp_memory
+begin_temp_memory(memory_arena *arena)
+{
+    temp_memory result = 
+    {
+        .arena = arena,
+        .usedOld = arena->used,
+    };
+    
+    arena->tempCount += 1;
+    
+    return result;
+}
+
+internal void
+end_temp_memory(temp_memory mem)
+{
+    memory_arena *arena = mem.arena;
+    assert(arena->used >= mem.usedOld);
+    arena->used = mem.usedOld;
+    arena->tempCount -= 1;
+}
+
+internal void
+check_arena(memory_arena *arena)
+{
+    assert(arena->tempCount == 0);
+}
 
 inline size_t
 arena_get_alignment_offset(memory_arena *arena, size_t alignment)

@@ -32,6 +32,7 @@ typedef struct os_globals
 #endif
     
     os_mouse mouse;
+    os_keyboard keyboard;
     
     f32 perfFrequency;
     
@@ -43,6 +44,7 @@ typedef struct os_globals
 global os_globals os;
 
 #include "win32_mouse.h"
+#include "win32_keyboard.h"
 #include "win32_events.h"
 #include "win32_time.h"
 
