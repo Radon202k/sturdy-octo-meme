@@ -149,7 +149,7 @@ opengl_set_global_state(opengl_context *gl)
     glEnable(GL_DEPTH_TEST);
     
     // Disable culling
-    glEnable(GL_CULL_FACE);
+    glDisable(GL_CULL_FACE);
 }
 
 #endif //WIN32_OPENGL_CONTEXT_H

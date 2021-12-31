@@ -45,10 +45,16 @@ win32_get_window_size(HWND hwnd)
 }
 
 internal void
+win32_make_label_f32(char buffer[], u32 bufferSize, char *string, f32 value)
+{
+    sprintf_s(buffer, bufferSize, "%s: %.6f\n", string, value);
+}
+
+internal void
 win32_print_f32(char *string, f32 value)
 {
     char buffer[512];
-    sprintf_s(buffer, sizeof(buffer), "%s: %.6f\n", string, value);
+    win32_make_label_f32(buffer, sizeof(buffer), string, value);
     OutputDebugStringA(buffer);
 }
 

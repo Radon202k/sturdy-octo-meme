@@ -8,7 +8,6 @@ typedef struct opengl_vertex
     f32 position[3];
     f32 uv[2];
     f32 color[3];
-    GLuint texture;
 } opengl_vertex;
 
 typedef struct opengl_mesh
@@ -32,8 +31,19 @@ typedef struct opengl_vertexbuffer
     GLuint vbo;
     GLuint ebo;
     u32 vertexCount;
+    opengl_vertex *vertices;
     u32 indexCount;
+    u32 *indices;
 } opengl_vertexbuffer;
+
+typedef struct opengl_renderpass
+{
+    opengl_vertexbuffer *buffer;
+    GLint textureUnit;
+    GLuint textureHandle;
+    mat4 view;
+    mat4 proj;
+} opengl_renderpass;
 
 typedef struct opengl_context
 {

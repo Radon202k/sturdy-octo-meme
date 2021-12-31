@@ -11,5 +11,6 @@ out vec4 o_color;
 
 void main()
 {
-	o_color = color * texture(s_texture, uv);
+	vec4 texelColor = texture(s_texture, uv);
+	o_color = color * texelColor;
 } 

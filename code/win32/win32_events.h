@@ -104,6 +104,22 @@ WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
             {
                 win32_handle_keyboardbutton(&os.keyboard.buttons[KEY_SPACE], msg);
             }
+            else if (wParam == 'A')
+            {
+                win32_handle_keyboardbutton(&os.keyboard.buttons[KEY_A], msg);
+            }
+            else if (wParam == 'W')
+            {
+                win32_handle_keyboardbutton(&os.keyboard.buttons[KEY_W], msg);
+            }
+            else if (wParam == 'S')
+            {
+                win32_handle_keyboardbutton(&os.keyboard.buttons[KEY_S], msg);
+            }
+            else if (wParam == 'D')
+            {
+                win32_handle_keyboardbutton(&os.keyboard.buttons[KEY_D], msg);
+            }
         } break;
         
         default:

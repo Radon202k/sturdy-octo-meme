@@ -207,4 +207,39 @@ opengl_make_cube_mesh_indexed(v3 offset, v3 scale, memory_arena *arena, u32 inde
     return cube;
 }
 
+internal opengl_mesh_indexed
+opengl_make_quad_indexed(memory_arena *arena, v2 minPos, v2 maxPos, v2 minUV, v2 maxUV, u32 indexBase)
+{
+    opengl_mesh_indexed quad = opengl_make_mesh_indexed(4, 6, arena);
+    
+    f32 minX = minPos.x;
+    f32 maxX = maxPos.x;
+    
+    f32 minY = minPos.y;
+    f32 maxY = maxPos.y;
+    
+    f32 minU = minUV.x;
+    f32 minV = minUV.y;
+    f32 maxU = maxUV.x;
+    f32 maxV = maxUV.y;
+    
+    opengl_vertex vertices[] =
+    {
+        { { minX, minY, 0 }, { minU, minV }, {1,1,1} }, // 0
+        { { maxX, minY, 0 }, { maxU, minV }, {1,1,1} }, // 1
+        { { maxX, maxY, 0 }, { maxU, maxV }, {1,1,1} }, // 2
+        { { minX, maxY, 0 }, { minU, maxV }, {1,1,1} }, // 3
+    };
+    
+    u32 indices[] =
+    {
+        indexBase + 0, indexBase + 1, indexBase + 2, indexBase + 2, indexBase + 3, indexBase + 0,
+    };
+    
+    memcpy(quad.vertices, vertices, sizeof(vertices));
+    memcpy(quad.indices, indices, sizeof(indices)); 
+    
+    return quad;
+}
+
 #endif //WIN32_OPENGL_MESH_H

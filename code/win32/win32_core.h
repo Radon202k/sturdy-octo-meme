@@ -18,6 +18,9 @@
 #ifdef OPENGL_RENDERER
 #include "opengl/win32_opengl.h"
 #endif
+
+#include "win32_keyboard.h"
+
 typedef struct os_globals
 {
     b32 initialized;
@@ -44,7 +47,6 @@ typedef struct os_globals
 global os_globals os;
 
 #include "win32_mouse.h"
-#include "win32_keyboard.h"
 #include "win32_events.h"
 #include "win32_time.h"
 

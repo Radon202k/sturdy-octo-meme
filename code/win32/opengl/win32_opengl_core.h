@@ -50,24 +50,15 @@ opengl_prepare_frame(opengl_context *gl)
 }
 
 internal void
-opengl_draw_frame(opengl_context *gl, mat4 *view)
+opengl_draw_frame(opengl_context *gl, opengl_renderpass *renderPasses, u32 count)
 {
     opengl_prepare_frame(gl);
     
-    opengl_upload_uniforms(gl, view);
-    
-    // Activate shaders for next draw call
-    glBindProgramPipeline(gl->pipeline);
-    
-    GLint textureUnit = 0;
-    GLuint textureHandle = gl->texture;
-    
     for (u32 i = 0;
-         i < gl->vertexBuffers.count;
+         i < count;
          ++i)
     {
-        opengl_vertexbuffer *vertexBuffer = &((opengl_vertexbuffer *)gl->vertexBuffers.data)[i];
-        opengl_renderpass(vertexBuffer, textureUnit, textureHandle);
+        opengl_execute_renderpass(gl, renderPasses[i]);
     }
     
     // Swap the buffers to show output

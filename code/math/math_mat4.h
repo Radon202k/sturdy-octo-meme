@@ -261,5 +261,30 @@ mat4_perspective(f32 ar, f32 fov, f32 zNear, f32 zFar)
     return(result);
 }
 
+internal mat4_inv
+mat4_orthographic(f32 width, f32 height)
+{
+    f32 a = 2.0f/width;
+    f32 b = -2.0f/height;
+    mat4_inv Result =
+    {
+        {{
+                {a,  0,  0,  -1},
+                {0,  b,  0,  1},
+                {0,  0,  1,  0},
+                {0,  0,  0,  1}
+            }},
+        
+        {{
+                {1,   0,   0,    0},
+                {  0, 1,   0,    0},
+                {  0,   0, 1, 0},
+                {  0,   0,   0,    1}
+            }},
+    };
+    
+    return(Result);
+}
+
 
 #endif //MATH_MAT4_H

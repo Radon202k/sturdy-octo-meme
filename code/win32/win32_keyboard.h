@@ -3,8 +3,23 @@
 #ifndef WIN32_KEYBOARD_H
 #define WIN32_KEYBOARD_H
 
-#define KEY_CONTROL 0
-#define KEY_SPACE 1
+enum keyboard_key
+{
+    KEY_CONTROL,
+    KEY_SPACE,
+    
+    KEY_A,
+    KEY_W,
+    KEY_S,
+    KEY_D,
+    
+    KEY_COUNT,
+};
+
+typedef struct os_keyboard
+{
+    os_button buttons[KEY_COUNT];
+} os_keyboard;
 
 internal void
 win32_handle_keyboardbutton(os_button *button, UINT msg)

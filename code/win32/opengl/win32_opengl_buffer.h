@@ -4,32 +4,22 @@
 #define WIN32_OPENGL_VERTEXBUFFER_H
 
 internal void
-opengl_upload_vertexbuffer_data_immutable(opengl_vertexbuffer *b, 
-                                          u32 vertexCount, opengl_vertex *vertices, 
-                                          u32 indexCount, u32 *indices)
+opengl_upload_vertexbuffer_data_immutable(opengl_vertexbuffer *b)
 {
-    b->vertexCount = vertexCount;
-    b->indexCount = indexCount;
-    
-    glNamedBufferStorage(b->vbo, sizeof(opengl_vertex) * vertexCount, vertices, 0);
-    glNamedBufferData(b->ebo, sizeof(u32) * indexCount, indices, GL_STATIC_DRAW);
+    glNamedBufferStorage(b->vbo, sizeof(opengl_vertex) * b->vertexCount, b->vertices, 0);
+    glNamedBufferData(b->ebo, sizeof(u32) * b->indexCount, b->indices, GL_STATIC_DRAW);
 }
 
 internal void
-opengl_upload_vertexbuffer_data(opengl_vertexbuffer *b, 
-                                u32 vertexCount, opengl_vertex *vertices, 
-                                u32 indexCount, u32 *indices)
+opengl_upload_vertexbuffer_data(opengl_vertexbuffer *b)
 {
-    b->vertexCount = vertexCount;
-    b->indexCount = indexCount;
-    
-    glNamedBufferData(b->vbo, sizeof(opengl_vertex) * vertexCount, vertices, GL_DYNAMIC_DRAW);
-    glNamedBufferData(b->ebo, sizeof(u32) * indexCount, indices, GL_DYNAMIC_DRAW);
+    glNamedBufferData(b->vbo, sizeof(opengl_vertex) * b->vertexCount, b->vertices, GL_DYNAMIC_DRAW);
+    glNamedBufferData(b->ebo, sizeof(u32) * b->indexCount, b->indices, GL_DYNAMIC_DRAW);
 }
 
 
 internal opengl_vertexbuffer
-opengl_make_vertexbuffer(void)
+opengl_make_vertexbuffer(memory_arena *arena, u32 maxVertexCount, u32 maxIndexCount)
 {
     opengl_vertexbuffer result = 
     {
@@ -37,17 +27,14 @@ opengl_make_vertexbuffer(void)
         .vbo = (GLuint)-1,
         .ebo = (GLuint)-1,
         .vertexCount = 0,
+        .vertices = push_array(arena, maxVertexCount, opengl_vertex, 4),
         .indexCount = 0,
-        
+        .indices = push_array(arena, maxIndexCount, u32, 4),
     };
     
-    // Vertex buffer
+    // Create objects/handles
     glCreateBuffers(1, &result.vbo);
-    
-    // Index buffer
     glCreateBuffers(1, &result.ebo);
-    
-    // Vertex array
     glCreateVertexArrays(1, &result.vao);
     
     // Vao's vbo
@@ -74,16 +61,13 @@ opengl_make_vertexbuffer(void)
 }
 
 internal void
-opengl_upload_uniforms(opengl_context *gl, mat4 *view)
+opengl_upload_uniforms(opengl_context *gl, mat4 *view, mat4 *proj)
 {
     gl->angle += 0.02f * 2.0f * 3.1415f / 20.0f; // full rotation in 20 seconds
     gl->angle = fmodf(gl->angle, 2.0f * 3.1415f);
     
-    f32 aspect = (f32)gl->windowWidth / (f32)gl->windowHeight;
     
-    mat4_inv proj = mat4_perspective(aspect, 0.8f, 0.1f, 1000.0f);
-    
-    mat4 projViewMat = mat4_transpose(mat4_mul(proj.forward, *view));
+    mat4 projViewMat = mat4_transpose(mat4_mul(*proj, *view));
     
     GLint projview = 0;
     // glProgramUniformMatrix4fv(gl->vShader, projview, 1, GL_FALSE, (f32 *)identity.E);
