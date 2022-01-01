@@ -4,6 +4,12 @@
 #define MATH_S32_H
 
 internal s32
+sq_s32(s32 value)
+{
+    return value*value;
+}
+
+internal s32
 clamp_s32(s32 value, s32 min, s32 max)
 {
     if (value < min)

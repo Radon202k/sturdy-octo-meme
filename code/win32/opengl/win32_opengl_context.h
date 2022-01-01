@@ -145,11 +145,11 @@ opengl_set_global_state(opengl_context *gl)
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     
-    // Disble depth testing
+    // Enable depth testing
     glEnable(GL_DEPTH_TEST);
     
-    // Disable culling
-    glDisable(GL_CULL_FACE);
+    // Enable culling
+    glEnable(GL_CULL_FACE);
 }
 
 #endif //WIN32_OPENGL_CONTEXT_H

@@ -129,10 +129,10 @@ opengl_make_cube_mesh_indexed(v3 offset, v3 scale, memory_arena *arena, u32 inde
     f32 minV = 0;
     f32 maxV = dv;
     
-    if (textureType == 1)
+    if (textureType > 0)
     {
-        u32 blockX = 3;
-        u32 blockY = 3;
+        u32 blockX = textureType;
+        u32 blockY = textureType;
         minU = (f32)blockX * du;
         minV = (f32)blockY * dv;
         maxU = minU + du;
@@ -233,7 +233,7 @@ opengl_make_quad_indexed(memory_arena *arena, v2 minPos, v2 maxPos, v2 minUV, v2
     
     u32 indices[] =
     {
-        indexBase + 0, indexBase + 1, indexBase + 2, indexBase + 2, indexBase + 3, indexBase + 0,
+        indexBase + 0, indexBase + 2, indexBase + 1, indexBase + 2, indexBase + 0, indexBase + 3,
     };
     
     memcpy(quad.vertices, vertices, sizeof(vertices));

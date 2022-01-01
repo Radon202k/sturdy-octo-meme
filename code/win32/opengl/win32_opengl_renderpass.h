@@ -3,6 +3,22 @@
 #ifndef WIN32_OPENGL_RENDERPASS_H
 #define WIN32_OPENGL_RENDERPASS_H
 
+internal opengl_renderpass 
+opengl_make_renderpass(opengl_vertexbuffer *b, GLint texUnit, GLuint texHandle,
+                       mat4 view, mat4 proj)
+{
+    opengl_renderpass renderPass = 
+    {
+        .buffer = b,
+        .textureUnit = texUnit,
+        .textureHandle = texHandle,
+        .view = view,
+        .proj = proj,
+    };
+    
+    return renderPass;
+}
+
 internal void
 opengl_execute_renderpass(opengl_context *gl, opengl_renderpass renderPass)
 {

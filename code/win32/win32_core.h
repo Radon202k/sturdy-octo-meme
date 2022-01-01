@@ -50,7 +50,7 @@ global os_globals os;
 #include "win32_events.h"
 #include "win32_time.h"
 
-internal void
+internal memory_arena *
 win32_init(void)
 {
     size_t poolSize = megabytes(512);
@@ -58,6 +58,12 @@ win32_init(void)
     os.mainArena.base = (u8 *)os.memoryPool;
     os.mainArena.used = 0;
     os.mainArena.size = poolSize;
+    
+    LARGE_INTEGER perfFrequency;
+    QueryPerformanceFrequency(&perfFrequency);
+    os.perfFrequency = (f32)perfFrequency.QuadPart;
+    
+    return &os.mainArena;
 }
 
 #endif //WIN32_CORE_H
