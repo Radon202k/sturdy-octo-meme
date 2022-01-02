@@ -16,7 +16,7 @@ internal void
 win32_clear_keyboard_buttons(void)
 {
     for (u32 i = 0;
-         i < 3;
+         i < KEY_COUNT;
          ++i)
     {
         os.keyboard.buttons[i].pressed = 0;
@@ -26,15 +26,15 @@ win32_clear_keyboard_buttons(void)
 internal void
 win32_poll_messages()
 {
+    win32_clear_mouse_buttons();
+    win32_clear_keyboard_buttons();
+    
     MSG msg;
     while(PeekMessageA(&msg, 0, 0, 0, PM_REMOVE))
     {
         TranslateMessage(&msg);
         DispatchMessageA(&msg);
     }
-    
-    win32_clear_mouse_buttons();
-    win32_clear_keyboard_buttons();
 }
 
 LRESULT CALLBACK 

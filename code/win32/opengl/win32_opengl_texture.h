@@ -4,6 +4,12 @@
 #define WIN32_OPENGL_TEXTURE_H
 
 internal void
+opengl_update_texture(GLuint *handle, u32 width, u32 height, GLenum format, u32 *pixels)
+{
+    glTextureSubImage2D(*handle, 0, 0, 0, width, height, format, GL_UNSIGNED_BYTE, pixels);
+}
+
+internal void
 opengl_make_texture(GLuint *handle, GLsizei width, GLsizei height, u32 *pixels, GLenum format, GLenum filter)
 {
     glCreateTextures(GL_TEXTURE_2D, 1, handle);

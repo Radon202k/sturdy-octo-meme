@@ -31,7 +31,7 @@ win32_handle_keyboardbutton(os_button *button, UINT msg)
         down = 1;
     }
     
-    button->pressed = down;
+    button->pressed = down && !button->down;
     button->down = down;
     button->up = !down;
 }
