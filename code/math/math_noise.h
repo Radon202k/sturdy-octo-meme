@@ -77,7 +77,7 @@ perlinlike_noise2d(s32 width, s32 height, s32 octaves, f32 bias,
                 f32 blendY = (f32)(y - sampleY1) / (f32)pitch;
                 
                 f32 sampleT = (1.0f - blendX) * seed[sampleY1 * width + sampleX1] + blendX * seed[sampleY1 * width + sampleX2];
-                f32 sampleB = (1.0f - blendX) * seed[sampleY2 * width * sampleX1] + blendX * seed[sampleY1 * width + sampleX2];
+                f32 sampleB = (1.0f - blendX) * seed[sampleY2 * width + sampleX1] + blendX * seed[sampleY2 * width + sampleX2];
                 
                 noise += (blendY * (sampleB - sampleT) + sampleT) * scale;
                 
