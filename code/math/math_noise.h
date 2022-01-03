@@ -46,6 +46,7 @@ perlinlike_noise1d(s32 count, s32 octaves, f32 bias, f32 *seed, f32 *output)
     }
 }
 
+// IMPORTANT: width and height must always be a power of 2!!!
 internal void
 perlinlike_noise2d(s32 width, s32 height, s32 octaves, f32 bias, 
                    f32 *seed, f32 *output)

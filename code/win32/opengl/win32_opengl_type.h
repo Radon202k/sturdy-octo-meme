@@ -53,13 +53,10 @@ typedef struct opengl_context
     HDC hdc;
     HGLRC hglrc;
     
-    GLuint texture;
     GLuint vShader;
     GLuint fShader;
     GLuint pipeline;
     f32 angle;
-    
-    typeless_vector vertexBuffers;
     
     PFNWGLCHOOSEPIXELFORMATARBPROC wglChoosePixelFormatARB;
     PFNWGLCREATECONTEXTATTRIBSARBPROC wglCreateContextAttribsARB;

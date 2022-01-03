@@ -40,7 +40,6 @@ typedef struct os_globals
     f32 perfFrequency;
     
     u8 *memoryPool;
-    memory_arena mainArena;
     
 } os_globals;
 
@@ -50,20 +49,28 @@ global os_globals os;
 #include "win32_events.h"
 #include "win32_time.h"
 
-internal memory_arena *
+internal memory_pool
 win32_init(void)
 {
-    size_t poolSize = megabytes(512);
-    win32_allocate_memory_pool(&os.memoryPool, poolSize);
-    os.mainArena.base = (u8 *)os.memoryPool;
-    os.mainArena.used = 0;
-    os.mainArena.size = poolSize;
-    
+    // Time
     LARGE_INTEGER perfFrequency;
     QueryPerformanceFrequency(&perfFrequency);
     os.perfFrequency = (f32)perfFrequency.QuadPart;
     
-    return &os.mainArena;
+    // Memory
+    size_t platSize = megabytes(2);
+    u8 *platBase = 0;
+    win32_allocate_memory_pool((void *)terabytes(1), &platBase, platSize);
+    
+    size_t permSize = megabytes(512);
+    size_t tranSize = megabytes(256);
+    size_t poolSize = permSize + tranSize;
+    win32_allocate_memory_pool((void *)terabytes(2), &os.memoryPool, poolSize);
+    
+    memory_pool result = {0};
+    memory_pool_init(&result, platBase, platSize, os.memoryPool, permSize, tranSize);
+    
+    return result;
 }
 
 #endif //WIN32_CORE_H

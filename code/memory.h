@@ -3,6 +3,16 @@
 #ifndef MEMORY_H
 #define MEMORY_H
 
+typedef struct memory_pool
+{
+    size_t platSize;
+    u8 *platBase;
+    size_t permSize;
+    u8 *permBase;
+    size_t tranSize;
+    u8 *tranBase;
+} memory_pool;
+
 typedef struct memory_arena
 {
     u8 *base;
@@ -50,6 +60,26 @@ internal void
 check_arena(memory_arena *arena)
 {
     assert(arena->tempCount == 0);
+}
+
+inline void
+memory_pool_init(memory_pool *pool, u8 *platAddress, size_t platSize,
+                 u8 *address, size_t permSize, size_t tranSize)
+{
+    pool->platBase = platAddress;
+    pool->platSize = platSize;
+    pool->permSize = permSize;
+    pool->tranSize = tranSize;
+    pool->permBase = address;
+    pool->tranBase = address + permSize;
+}
+
+inline void
+arena_init(memory_arena *arena, size_t size, u8 *base)
+{
+    arena->size = size;
+    arena->used = 0;
+    arena->base = base;
 }
 
 inline size_t

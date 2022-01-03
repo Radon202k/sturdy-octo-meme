@@ -7,7 +7,7 @@ unsigned char ttf_buffer[1<<20];
 unsigned char temp_bitmap[512*512];
 
 stbtt_bakedchar cdata[96]; // ASCII 32..126 is 95 glyphs
-GLuint ftex;
+GLuint globalFontTexture;
 
 void stbtt_initfont(memory_arena *arena)
 {
@@ -35,7 +35,7 @@ void stbtt_initfont(memory_arena *arena)
         }
     }
     
-    opengl_make_texture(&ftex, 512, 512, output, GL_RGBA, GL_LINEAR);
+    opengl_make_texture(&globalFontTexture, 512, 512, output, GL_RGBA, GL_LINEAR);
 }
 
 void stbtt_print(memory_arena *arena, opengl_vertexbuffer *b, float x, float y, char *text)
