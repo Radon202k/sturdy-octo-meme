@@ -5,6 +5,11 @@ typedef struct cubes_scene_t
     
     GLuint atlasTexture;
     
+    f32 *noise2dSeed;
+    f32 *noise2d;
+    u32 noiseOctave;
+    f32 noiseBias;
+    
     transform_t cameraTarget;
     camera_t camera;
     
@@ -21,6 +26,76 @@ typedef struct cubes_scene_t
 } cubes_scene_t;
 
 internal void
+cubes_scene_generate_cubes(cubes_scene_t *scene)
+{
+    memory_arena *arena = &scene->arenaPerm;
+    s32 chunkRange = 1;
+    
+    s32 totalWidth = 5;
+    s32 totalHeight = 5;
+    
+    for (s32 chunkZ = 1;
+         chunkZ <= 1;
+         ++chunkZ)
+    {
+        for (s32 chunkY = -chunkRange;
+             chunkY <= chunkRange;
+             ++chunkY)
+        {
+            for (s32 chunkX = -chunkRange;
+                 chunkX <= chunkRange;
+                 ++chunkX)
+            {
+                s32 range = 4;
+                
+                u32 blockType = rand() % 10 + chunkX;
+                
+                for (s32 k = 1;
+                     k <= 1;
+                     ++k)
+                {
+                    for (s32 j = -range;
+                         j <= range;
+                         ++j)
+                    {
+                        for (s32 i = -range;
+                             i <= range;
+                             ++i)
+                        {
+                            f32 scale = 1.0f;
+                            v3 size = {scale, scale, scale};
+                            
+                            f32 x = (f32)(chunkX*(range*2*scale) + (i * size.x));
+                            f32 y = (f32)(chunkY*(range*2*scale) + (j * size.y));
+                            f32 z = (f32)(chunkZ*(range*2*scale) + (k * size.z));
+                            
+                            f32 height = -10 + scene->noise2d[(s32)y * 32 + (s32)x];
+                            
+                            if (1)
+                            {
+                                v3 offset = {x,z + height,y};
+                                
+                                opengl_mesh_indexed cube = opengl_make_cube_mesh_indexed(offset, size, arena, scene->cubesVertexBuffer->vertexCount, 
+                                                                                         blockType);
+                                
+                                memcpy(scene->cubesVertexBuffer->vertices + scene->cubesVertexBuffer->vertexCount, cube.vertices, sizeof(opengl_vertex) * cube.vertexCount);
+                                memcpy(scene->cubesVertexBuffer->indices + scene->cubesVertexBuffer->indexCount, cube.indices, sizeof(u32) * cube.indexCount);
+                                
+                                // Register the amount of vertices added
+                                scene->cubesVertexBuffer->vertexCount += cube.vertexCount;
+                                scene->cubesVertexBuffer->indexCount += cube.indexCount;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    opengl_upload_vertexbuffer_data(scene->cubesVertexBuffer);
+}
+
+internal void
 cubes_scene_make_vertexbuffers(memory_pool *scenePool)
 {
     cubes_scene_t *scene = (cubes_scene_t *)scenePool->permBase;
@@ -34,83 +109,17 @@ cubes_scene_make_vertexbuffers(memory_pool *scenePool)
     scene->textVertexBuffer = &((opengl_vertexbuffer *)scene->vertexBuffers.data)[2];
     
     // First vertex buffer, static cubes
-    // generation code
-    {
-        *scene->cubesVertexBuffer = opengl_make_vertexbuffer(arena, 5000000, 500000);
-        
-        s32 chunkRange = 4;
-        
-        s32 totalWidth = 5;
-        s32 totalHeight = 5;
-        // f32 *noise = perlinlike_noise2d((f32)totalWidth, (f32)totalHeight, 0.1f, 8);
-        
-        for (s32 chunkZ = 1;
-             chunkZ <= 1;
-             ++chunkZ)
-        {
-            for (s32 chunkY = -chunkRange;
-                 chunkY <= chunkRange;
-                 ++chunkY)
-            {
-                for (s32 chunkX = -chunkRange;
-                     chunkX <= chunkRange;
-                     ++chunkX)
-                {
-                    s32 range = 4;
-                    
-                    u32 blockType = rand() % 10 + chunkX;
-                    
-                    for (s32 k = -range;
-                         k <= range;
-                         ++k)
-                    {
-                        for (s32 j = -range;
-                             j <= range;
-                             ++j)
-                        {
-                            for (s32 i = -range;
-                                 i <= range;
-                                 ++i)
-                            {
-                                f32 scale = 1.0f;
-                                v3 size = {scale, scale, scale};
-                                
-                                f32 x = (f32)(chunkX*(range*2*scale) + (i * size.x));
-                                f32 y = (f32)(chunkY*(range*2*scale) + (j * size.y));
-                                f32 z = (f32)(chunkZ*(range*2*scale) + (k * size.z));
-                                
-                                // f32 height = noise[(s32)x * totalWidth + (s32)z];
-                                f32 height = -11;
-                                
-                                if (1)
-                                {
-                                    v3 offset = {x,z + height,y};
-                                    
-                                    opengl_mesh_indexed cube = opengl_make_cube_mesh_indexed(offset, size, arena, scene->cubesVertexBuffer->vertexCount, 
-                                                                                             blockType);
-                                    
-                                    memcpy(scene->cubesVertexBuffer->vertices + scene->cubesVertexBuffer->vertexCount, cube.vertices, sizeof(opengl_vertex) * cube.vertexCount);
-                                    memcpy(scene->cubesVertexBuffer->indices + scene->cubesVertexBuffer->indexCount, cube.indices, sizeof(u32) * cube.indexCount);
-                                    
-                                    // Register the amount of vertices added
-                                    scene->cubesVertexBuffer->vertexCount += cube.vertexCount;
-                                    scene->cubesVertexBuffer->indexCount += cube.indexCount;
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        
-        opengl_upload_vertexbuffer_data_immutable(scene->cubesVertexBuffer);
-    }
+    *scene->cubesVertexBuffer = opengl_make_vertexbuffer(arena, 5000000, 500000);
+    cubes_scene_generate_cubes(scene);
+    opengl_vertexbuffer_set_default_inputlayout(scene->cubesVertexBuffer);
     
     // Second vertex buffer, moving objects
     *scene->movingVertexBuffer = opengl_make_vertexbuffer(arena, 10000, 10000);
+    opengl_vertexbuffer_set_default_inputlayout(scene->movingVertexBuffer);
     
     // Third vertex buffer, debug text
     *scene->textVertexBuffer = opengl_make_vertexbuffer(arena, 1000, 1000);
+    opengl_vertexbuffer_set_default_inputlayout(scene->textVertexBuffer);
 }
 
 internal void
@@ -151,6 +160,14 @@ cubes_scene_init(memory_pool *scenePool)
     
     cubes_scene_load_texture_atlas(scene);
     
+    scene->noiseOctave = 3;
+    scene->noiseBias = 0.2f;
+    
+    scene->noise2dSeed = push_array(arena, 32*32, f32, 4);
+    scene->noise2d = push_array(arena, 32*32, f32, 4);
+    
+    perlinlike_noise2d(32, 32, scene->noiseOctave, scene->noiseBias, scene->noise2dSeed, scene->noise2d);
+    
     // "Player"
     scene->cameraTarget = transform_get_default();
     scene->cameraTarget.translation.y = 2;
@@ -178,11 +195,14 @@ cubes_scene_init(memory_pool *scenePool)
     
     scene->renderPasses = push_array(arena, 3, opengl_renderpass, 4);
     // Static cubes
-    scene->renderPasses[0] = opengl_make_renderpass(scene->cubesVertexBuffer, 0, scene->atlasTexture, cameraView, perspectiveProj);
+    scene->renderPasses[0] = opengl_make_renderpass(scene->cubesVertexBuffer, renderpass_primitive_triangles, 
+                                                    0, scene->atlasTexture, cameraView, perspectiveProj, mainPipeline);
     // Moving objects
-    scene->renderPasses[1] = opengl_make_renderpass(scene->movingVertexBuffer, 0, scene->atlasTexture, cameraView, perspectiveProj);
+    scene->renderPasses[1] = opengl_make_renderpass(scene->movingVertexBuffer, renderpass_primitive_triangles,
+                                                    0, scene->atlasTexture, cameraView, perspectiveProj, mainPipeline);
     // Debug text
-    scene->renderPasses[2] = opengl_make_renderpass(scene->textVertexBuffer, 0, globalFontTexture, noView, orthographicProj);
+    scene->renderPasses[2] = opengl_make_renderpass(scene->textVertexBuffer, renderpass_primitive_triangles,
+                                                    0, globalFontTexture, noView, orthographicProj, mainPipeline);
 }
 
 internal void
@@ -199,6 +219,31 @@ cubes_scene_update(memory_pool *scenePool, f32 elapsedTime)
     scene->lastMousePos = scene->mousePos;
     
     f32 speed = 10;
+    
+    b32 calculateNoise = 0;
+    
+    if (os.keyboard.buttons[KEY_SHIFT].down)
+    {
+        if (os.keyboard.buttons[KEY_O].down)
+        {
+            if (os.keyboard.buttons[KEY_PLUS].pressed)
+            {
+                if (scene->noiseOctave < 9)
+                {
+                    scene->noiseOctave += 1;
+                    calculateNoise = 1;
+                }
+            }
+            else if (os.keyboard.buttons[KEY_MINUS].pressed)
+            {
+                if (scene->noiseOctave > 1)
+                {
+                    scene->noiseOctave -= 1;
+                    calculateNoise = 1;
+                }
+            }
+        }
+    }
     
     if (os.keyboard.buttons[KEY_A].down)
     {
@@ -218,6 +263,29 @@ cubes_scene_update(memory_pool *scenePool, f32 elapsedTime)
     if (os.keyboard.buttons[KEY_S].down)
     {
         scene->cameraTarget.translation.z += elapsedTime * speed;
+    }
+    
+    if (os.keyboard.buttons[KEY_SHIFT].down)
+    {
+        if (os.keyboard.buttons[KEY_B].down)
+        {
+            if (os.keyboard.buttons[KEY_PLUS].pressed)
+            {
+                scene->noiseBias += 0.2f;
+                calculateNoise = 1;
+            }
+            else if (os.keyboard.buttons[KEY_MINUS].pressed)
+            {
+                scene->noiseBias -= 0.2f;
+                calculateNoise = 1;
+            }
+        }
+    }
+    
+    if (calculateNoise)
+    {
+        perlinlike_noise2d(32, 32, scene->noiseOctave, scene->noiseBias, scene->noise2dSeed, scene->noise2d);
+        cubes_scene_generate_cubes(scene);
     }
     
     if (os.mouse.buttons[0].down)
@@ -273,10 +341,7 @@ cubes_scene_update(memory_pool *scenePool, f32 elapsedTime)
         scene->textVertexBuffer->vertexCount = 0;
         scene->textVertexBuffer->indexCount = 0;
         
-        char fpsBuffer[256] = {0};
-        win32_make_label_f32(fpsBuffer, sizeof(fpsBuffer), "Fps", 1.0f / elapsedTime);
-        
-        stbtt_print(arena, scene->textVertexBuffer, 0, 30, fpsBuffer);
+        stbtt_print(arena, scene->textVertexBuffer, 0, 2*30, "Cubes test scene");
         
         opengl_upload_vertexbuffer_data(scene->textVertexBuffer);
     }
@@ -289,5 +354,5 @@ cubes_scene_update(memory_pool *scenePool, f32 elapsedTime)
     cubes_scene_update_renderpasses(scene->renderPasses, &scene->camera);
     
     
-    opengl_draw_frame(&os.gl, scene->renderPasses, 3);
+    opengl_execute_renderpasses(&os.gl, scene->renderPasses, 3);
 }

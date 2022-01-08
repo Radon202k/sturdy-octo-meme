@@ -6,12 +6,32 @@
 enum keyboard_key
 {
     KEY_CONTROL,
+    KEY_SHIFT,
+    KEY_ALT,
     KEY_SPACE,
     
+    KEY_0,
+    KEY_1,
+    KEY_2,
+    KEY_3,
+    KEY_4,
+    KEY_5,
+    KEY_6,
+    KEY_7,
+    KEY_8,
+    KEY_9,
+    
     KEY_A,
+    KEY_B,
+    
     KEY_W,
     KEY_S,
     KEY_D,
+    
+    KEY_O,
+    
+    KEY_PLUS,
+    KEY_MINUS,
     
     KEY_COUNT,
 };

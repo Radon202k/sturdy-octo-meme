@@ -4,10 +4,10 @@
 #define WIN32_OPENGL_SHADER_H
 
 internal void
-opengl_make_shaders(opengl_context *gl)
+opengl_make_shaders(opengl_context *gl, GLuint *pipeline, char *vertexFile, char *fragmentFile)
 {
-    binary_file vShaderFile = read_entire_file("shaders/shader.vert");
-    binary_file fShaderFile = read_entire_file("shaders/shader.frag");
+    binary_file vShaderFile = read_entire_file(vertexFile);
+    binary_file fShaderFile = read_entire_file(fragmentFile);
     
     gl->vShader = glCreateShaderProgramv(GL_VERTEX_SHADER, 1, &vShaderFile.data);
     gl->fShader = glCreateShaderProgramv(GL_FRAGMENT_SHADER, 1, &fShaderFile.data);
@@ -31,9 +31,9 @@ opengl_make_shaders(opengl_context *gl)
         assert(!"Failed to create fragment shader!");
     }
     
-    glGenProgramPipelines(1, &gl->pipeline);
-    glUseProgramStages(gl->pipeline, GL_VERTEX_SHADER_BIT, gl->vShader);
-    glUseProgramStages(gl->pipeline, GL_FRAGMENT_SHADER_BIT, gl->fShader);
+    glGenProgramPipelines(1, pipeline);
+    glUseProgramStages(*pipeline, GL_VERTEX_SHADER_BIT, gl->vShader);
+    glUseProgramStages(*pipeline, GL_FRAGMENT_SHADER_BIT, gl->fShader);
 }
 
 #endif //WIN32_OPENGL_SHADER_H

@@ -36,13 +36,21 @@ typedef struct opengl_vertexbuffer
     u32 *indices;
 } opengl_vertexbuffer;
 
+typedef enum renderpass_primitive
+{
+    renderpass_primitive_triangles,
+    renderpass_primitive_lines,
+} renderpass_primitive;
+
 typedef struct opengl_renderpass
 {
     opengl_vertexbuffer *buffer;
+    renderpass_primitive primitiveType;
     GLint textureUnit;
     GLuint textureHandle;
     mat4 view;
     mat4 proj;
+    GLuint pipeline;
 } opengl_renderpass;
 
 typedef struct opengl_context
@@ -55,7 +63,6 @@ typedef struct opengl_context
     
     GLuint vShader;
     GLuint fShader;
-    GLuint pipeline;
     f32 angle;
     
     PFNWGLCHOOSEPIXELFORMATARBPROC wglChoosePixelFormatARB;

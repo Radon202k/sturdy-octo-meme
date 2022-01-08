@@ -43,6 +43,7 @@ perlin_scene_make_vertexbuffers(memory_pool *scenePool)
     scene->canvas2dVertexBuffer = &((opengl_vertexbuffer *)scene->vertexBuffers.data)[0];
     
     *scene->canvas2dVertexBuffer = opengl_make_vertexbuffer(arena, 1000, 1000);
+    opengl_vertexbuffer_set_default_inputlayout(scene->canvas2dVertexBuffer);
 }
 
 internal void
@@ -117,7 +118,8 @@ perlin_scene_init(memory_pool *scenePool)
     // Render passes
     
     scene->renderPasses = push_array(arena, 1, opengl_renderpass, 4);
-    scene->renderPasses[0] = opengl_make_renderpass(scene->canvas2dVertexBuffer, 0, scene->noiseTexture, cameraView, perspectiveProj);
+    scene->renderPasses[0] = opengl_make_renderpass(scene->canvas2dVertexBuffer, renderpass_primitive_triangles,
+                                                    0, scene->noiseTexture, cameraView, perspectiveProj, mainPipeline);
 }
 
 internal void
@@ -137,33 +139,51 @@ perlin_scene_update(memory_pool *scenePool, f32 elapsedTime)
     
     b32 calculateNoise = 0; 
     
-    if (os.keyboard.buttons[KEY_W].pressed)
-    {
-        scene->noiseMode = 2;
-        
-        calculateNoise = 1;
-    }
-    
-    if (os.keyboard.buttons[KEY_S].pressed)
+    if (os.keyboard.buttons[KEY_1].pressed)
     {
         scene->noiseMode = 1;
-        
         calculateNoise = 1;
     }
     
-    if (os.keyboard.buttons[KEY_D].pressed)
+    if (os.keyboard.buttons[KEY_2].pressed)
+    {
+        scene->noiseMode = 2;
+        calculateNoise = 1;
+    }
+    
+    if (os.keyboard.buttons[KEY_PLUS].pressed)
     {
         scene->noiseBias += 0.2f;
         calculateNoise = 1;
     }
     
-    if (os.keyboard.buttons[KEY_A].pressed)
+    if (os.keyboard.buttons[KEY_MINUS].pressed)
     {
         scene->noiseBias -= 0.2f;
         calculateNoise = 1;
     }
     
-    if (os.keyboard.buttons[KEY_CONTROL].pressed)
+    if (os.keyboard.buttons[KEY_SHIFT].down)
+    {
+        if (os.keyboard.buttons[KEY_PLUS].pressed)
+        {
+            if (scene->noiseOctave < 9)
+            {
+                scene->noiseOctave += 1;
+            }
+        }
+        else if (os.keyboard.buttons[KEY_MINUS].pressed)
+        {
+            if (scene->noiseOctave > 1)
+            {
+                scene->noiseOctave -= 1;
+            }
+        }
+        
+        calculateNoise = 1;
+    }
+    
+    if (os.keyboard.buttons[KEY_CONTROL].down && os.keyboard.buttons[KEY_A].pressed)
     {
         if (scene->noiseMode == 1)
         {
@@ -174,16 +194,6 @@ perlin_scene_update(memory_pool *scenePool, f32 elapsedTime)
             perlinlike_noise_seed(256*256, scene->noise2dSeed);
         }
         
-        calculateNoise = 1;
-    }
-    
-    if (os.keyboard.buttons[KEY_SPACE].pressed)
-    {
-        scene->noiseOctave += 1;
-        if (scene->noiseOctave == 9)
-        {
-            scene->noiseOctave = 1;
-        }
         calculateNoise = 1;
     }
     
@@ -273,7 +283,7 @@ perlin_scene_update(memory_pool *scenePool, f32 elapsedTime)
     scene->canvas2dVertexBuffer->vertexCount = 0;
     scene->canvas2dVertexBuffer->indexCount = 0;
     
-    opengl_mesh_indexed quad = opengl_make_quad_indexed(arena, V2(20,20), V2(480,480), V2(0,0), V2(1,1), scene->canvas2dVertexBuffer->vertexCount);
+    opengl_mesh_indexed quad = opengl_make_quad_indexed(arena, V2(30,30), V2(470,470), V2(0,0), V2(1,1), scene->canvas2dVertexBuffer->vertexCount);
     
     memcpy(scene->canvas2dVertexBuffer->vertices + scene->canvas2dVertexBuffer->vertexCount, quad.vertices, sizeof(opengl_vertex) * quad.vertexCount);
     memcpy(scene->canvas2dVertexBuffer->indices + scene->canvas2dVertexBuffer->indexCount, quad.indices, sizeof(u32) * quad.indexCount);
@@ -291,5 +301,5 @@ perlin_scene_update(memory_pool *scenePool, f32 elapsedTime)
     
     perlin_update_renderpasses(scene->renderPasses, &scene->camera);
     
-    opengl_draw_frame(&os.gl, scene->renderPasses, 1);
+    opengl_execute_renderpasses(&os.gl, scene->renderPasses, 1);
 }

@@ -100,13 +100,65 @@ WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
             {
                 win32_handle_keyboardbutton(&os.keyboard.buttons[KEY_CONTROL], msg);
             }
+            else if (wParam == VK_SHIFT)
+            {
+                win32_handle_keyboardbutton(&os.keyboard.buttons[KEY_SHIFT], msg);
+            }
+            else if (wParam == VK_MENU)
+            {
+                win32_handle_keyboardbutton(&os.keyboard.buttons[KEY_ALT], msg);
+            }
             else if (wParam == VK_SPACE)
             {
                 win32_handle_keyboardbutton(&os.keyboard.buttons[KEY_SPACE], msg);
             }
+            else if (wParam == 0x30)
+            {
+                win32_handle_keyboardbutton(&os.keyboard.buttons[KEY_0], msg);
+            }
+            else if (wParam == 0x31)
+            {
+                win32_handle_keyboardbutton(&os.keyboard.buttons[KEY_1], msg);
+            }
+            else if (wParam == 0x32)
+            {
+                win32_handle_keyboardbutton(&os.keyboard.buttons[KEY_2], msg);
+            }
+            else if (wParam == 0x33)
+            {
+                win32_handle_keyboardbutton(&os.keyboard.buttons[KEY_3], msg);
+            }
+            else if (wParam == 0x34)
+            {
+                win32_handle_keyboardbutton(&os.keyboard.buttons[KEY_4], msg);
+            }
+            else if (wParam == 0x35)
+            {
+                win32_handle_keyboardbutton(&os.keyboard.buttons[KEY_5], msg);
+            }
+            else if (wParam == 0x36)
+            {
+                win32_handle_keyboardbutton(&os.keyboard.buttons[KEY_6], msg);
+            }
+            else if (wParam == 0x37)
+            {
+                win32_handle_keyboardbutton(&os.keyboard.buttons[KEY_7], msg);
+            }
+            else if (wParam == 0x38)
+            {
+                win32_handle_keyboardbutton(&os.keyboard.buttons[KEY_8], msg);
+            }
+            else if (wParam == 0x39)
+            {
+                win32_handle_keyboardbutton(&os.keyboard.buttons[KEY_9], msg);
+            }
             else if (wParam == 'A')
             {
                 win32_handle_keyboardbutton(&os.keyboard.buttons[KEY_A], msg);
+            }
+            else if (wParam == 'B')
+            {
+                win32_handle_keyboardbutton(&os.keyboard.buttons[KEY_B], msg);
             }
             else if (wParam == 'W')
             {
@@ -120,6 +172,19 @@ WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
             {
                 win32_handle_keyboardbutton(&os.keyboard.buttons[KEY_D], msg);
             }
+            else if (wParam == 'O')
+            {
+                win32_handle_keyboardbutton(&os.keyboard.buttons[KEY_O], msg);
+            }
+            else if (wParam == VK_OEM_PLUS)
+            {
+                win32_handle_keyboardbutton(&os.keyboard.buttons[KEY_PLUS], msg);
+            }
+            else if (wParam == VK_OEM_MINUS)
+            {
+                win32_handle_keyboardbutton(&os.keyboard.buttons[KEY_MINUS], msg);
+            }
+            
         } break;
         
         default:

@@ -17,7 +17,6 @@ opengl_upload_vertexbuffer_data(opengl_vertexbuffer *b)
     glNamedBufferData(b->ebo, sizeof(u32) * b->indexCount, b->indices, GL_DYNAMIC_DRAW);
 }
 
-
 internal opengl_vertexbuffer
 opengl_make_vertexbuffer(memory_arena *arena, u32 maxVertexCount, u32 maxIndexCount)
 {
@@ -41,23 +40,24 @@ opengl_make_vertexbuffer(memory_arena *arena, u32 maxVertexCount, u32 maxIndexCo
     GLint vbuf_index = 0;
     glVertexArrayVertexBuffer(result.vao, vbuf_index, result.vbo, 0, sizeof(opengl_vertex));
     
-    // Vao's input layout
-    GLint a_pos = 0;
-    glVertexArrayAttribFormat(result.vao, a_pos, 3, GL_FLOAT, GL_FALSE, offsetof(opengl_vertex, position));
-    glVertexArrayAttribBinding(result.vao, a_pos, vbuf_index);
-    glEnableVertexArrayAttrib(result.vao, a_pos);
-    
-    GLint a_uv = 1;
-    glVertexArrayAttribFormat(result.vao, a_uv, 2, GL_FLOAT, GL_FALSE, offsetof(opengl_vertex, uv));
-    glVertexArrayAttribBinding(result.vao, a_uv, vbuf_index);
-    glEnableVertexArrayAttrib(result.vao, a_uv);
-    
-    GLint a_color = 2;
-    glVertexArrayAttribFormat(result.vao, a_color, 3, GL_FLOAT, GL_FALSE, offsetof(opengl_vertex, color));
-    glVertexArrayAttribBinding(result.vao, a_color, vbuf_index);
-    glEnableVertexArrayAttrib(result.vao, a_color);
-    
     return result;
+}
+
+internal void
+opengl_vertexbuffer_set_inputlayout(opengl_vertexbuffer *vertexBuffer, GLint index, GLenum type, GLint count, GLuint offset)
+{
+    glVertexArrayAttribFormat(vertexBuffer->vao, index, count, type, GL_FALSE, offset);
+    glVertexArrayAttribBinding(vertexBuffer->vao, index, 0);
+    glEnableVertexArrayAttrib(vertexBuffer->vao, index);
+}
+
+internal void
+opengl_vertexbuffer_set_default_inputlayout(opengl_vertexbuffer *vertexBuffer)
+{
+    // Vao's input layout
+    opengl_vertexbuffer_set_inputlayout(vertexBuffer, 0, GL_FLOAT, 3, offsetof(opengl_vertex, position));
+    opengl_vertexbuffer_set_inputlayout(vertexBuffer, 1, GL_FLOAT, 2, offsetof(opengl_vertex, uv));
+    opengl_vertexbuffer_set_inputlayout(vertexBuffer, 2, GL_FLOAT, 3, offsetof(opengl_vertex, color));
 }
 
 internal void

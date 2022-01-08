@@ -3,6 +3,27 @@
 #ifndef FILEIO_H
 #define FILEIO_H
 
+/*
+
+Usage:
+
+char *myFile = "This is my file";
+    size_t myFileSize = string_length(myFile);
+    if (write_entire_file("test.out", (u8 *)myFile, myFileSize))
+    {
+        int y = 3;
+    }
+    
+    binary_file myEntireFile = read_entire_file("test.out");
+    if (myEntireFile.exists)
+    {
+        char *myFileContents = push_size(&platArena, myEntireFile.byteSize, 4);
+        memcpy(myFileContents, myEntireFile.data, myEntireFile.byteSize);
+        int y = 3;
+    }
+    
+*/
+
 typedef struct binary_file
 {
     b32 exists;
@@ -28,7 +49,7 @@ read_entire_file(char *fileName)
     binary_file result = {0};
     
     FILE *file = 0;
-    fopen_s(&file, fileName, "r");
+    fopen_s(&file, fileName, "rb");
     
     if (file)
     {
@@ -43,6 +64,38 @@ read_entire_file(char *fileName)
             result.exists = 1;
             
             result.data[fileSize] = '\0';
+        }
+        
+        fclose(file);
+    }
+    else
+    {
+        // TODO: Log
+#if 0
+        char msg[512];
+        sprintf_s(msg, sizeof(msg), "Failed to open file: %s\n", fileName); 
+        log_message(msg);
+#endif
+    }
+    
+    return result;
+}
+
+internal b32
+write_entire_file(char *fileName, u8 *data, size_t dataSize)
+{
+    b32 result = 0;
+    
+    FILE *file = 0;
+    fopen_s(&file, fileName, "wb");
+    
+    if (file)
+    {
+        size_t bytesWritten = fwrite(data, 1, dataSize, file);
+        
+        if (bytesWritten > 0 && bytesWritten == dataSize)
+        {
+            result = 1;
         }
         
         fclose(file);

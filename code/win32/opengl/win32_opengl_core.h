@@ -28,8 +28,6 @@ opengl_init(opengl_context *gl, u32 x, u32 y, u32 w, u32 h, char *title, memory_
     
     opengl_make_modern_context(gl);
     
-    opengl_make_shaders(gl);
-    
     opengl_set_global_state(gl);
     
     // Enable vsync
@@ -39,7 +37,7 @@ opengl_init(opengl_context *gl, u32 x, u32 y, u32 w, u32 h, char *title, memory_
 }
 
 internal void
-opengl_prepare_frame(opengl_context *gl)
+opengl_begin_frame(opengl_context *gl)
 {
     // Setup output size covering all client area of window
     glViewport(0, 0, gl->windowWidth, gl->windowHeight);
@@ -50,17 +48,8 @@ opengl_prepare_frame(opengl_context *gl)
 }
 
 internal void
-opengl_draw_frame(opengl_context *gl, opengl_renderpass *renderPasses, u32 count)
+opengl_end_frame(opengl_context *gl)
 {
-    opengl_prepare_frame(gl);
-    
-    for (u32 i = 0;
-         i < count;
-         ++i)
-    {
-        opengl_execute_renderpass(gl, renderPasses[i]);
-    }
-    
     // Swap the buffers to show output
     if (!SwapBuffers(gl->hdc))
     {
