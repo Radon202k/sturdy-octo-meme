@@ -58,4 +58,31 @@ win32_print_f32(char *string, f32 value)
     OutputDebugStringA(buffer);
 }
 
+internal void
+win32_get_exe_path(char *dest)
+{
+    GetModuleFileNameA(0, dest, MAX_PATH);
+}
+
+internal void
+win32_get_root_path(char *rootPathDest)
+{
+    char exePath[MAX_PATH];
+    win32_get_exe_path(exePath);
+    
+    char *lastSlash = 0;
+    char *at = exePath;
+    while (*at)
+    {
+        if (*at == '\\')
+        {
+            lastSlash = at;
+        }
+        
+        ++at;
+    }
+    
+    memcpy(rootPathDest, exePath, lastSlash - exePath);
+}
+
 #endif //WIN32_UTILS_H

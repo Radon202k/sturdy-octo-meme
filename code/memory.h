@@ -198,4 +198,17 @@ strings_are_equal(char* src, char* dst, size_t dstlen)
     return (dstlen && *src == *dst) || (!dstlen && *src == 0);
 }
 
+internal void
+string_concat(char *dest, size_t destSize, char *a, char *b)
+{
+    u32 aLength = string_length(a);
+    u32 bLength = string_length(b);
+    
+    assert((aLength + bLength) <= destSize);
+    
+    memcpy(dest, a, aLength);
+    memcpy(dest + aLength, b, bLength);
+    dest[aLength + bLength] = 0;
+}
+
 #endif //MEMORY_H

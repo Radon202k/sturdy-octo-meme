@@ -50,7 +50,7 @@ void stbtt_print(memory_arena *arena, opengl_vertexbuffer *b, float x, float y, 
             opengl_mesh_indexed quad = opengl_make_quad_indexed(arena, V2(q.x0,q.y0), V2(q.x1,q.y1), 
                                                                 V2(q.s0,q.t0), V2(q.s1,q.t1), b->vertexCount);
             
-            memcpy(b->vertices + b->vertexCount, quad.vertices, sizeof(opengl_vertex) * quad.vertexCount);
+            memcpy(b->vertices + b->vertexCount, quad.vertices, b->vertexSize * quad.vertexCount);
             memcpy(b->indices + b->indexCount, quad.indices, sizeof(u32) * quad.indexCount);
             
             b->vertexCount += quad.vertexCount;

@@ -42,7 +42,7 @@ perlin_scene_make_vertexbuffers(memory_pool *scenePool)
     
     scene->canvas2dVertexBuffer = &((opengl_vertexbuffer *)scene->vertexBuffers.data)[0];
     
-    *scene->canvas2dVertexBuffer = opengl_make_vertexbuffer(arena, 1000, 1000);
+    *scene->canvas2dVertexBuffer = opengl_make_vertexbuffer(arena, sizeof(f32)*8, 1000, 1000);
     opengl_vertexbuffer_set_default_inputlayout(scene->canvas2dVertexBuffer);
 }
 
@@ -119,7 +119,7 @@ perlin_scene_init(memory_pool *scenePool)
     
     scene->renderPasses = push_array(arena, 1, opengl_renderpass, 4);
     scene->renderPasses[0] = opengl_make_renderpass(scene->canvas2dVertexBuffer, renderpass_primitive_triangles,
-                                                    0, scene->noiseTexture, cameraView, perspectiveProj, mainPipeline);
+                                                    0, scene->noiseTexture, cameraView, perspectiveProj, &textureShader);
 }
 
 internal void
@@ -285,7 +285,7 @@ perlin_scene_update(memory_pool *scenePool, f32 elapsedTime)
     
     opengl_mesh_indexed quad = opengl_make_quad_indexed(arena, V2(30,30), V2(470,470), V2(0,0), V2(1,1), scene->canvas2dVertexBuffer->vertexCount);
     
-    memcpy(scene->canvas2dVertexBuffer->vertices + scene->canvas2dVertexBuffer->vertexCount, quad.vertices, sizeof(opengl_vertex) * quad.vertexCount);
+    memcpy(scene->canvas2dVertexBuffer->vertices + scene->canvas2dVertexBuffer->vertexCount, quad.vertices, scene->canvas2dVertexBuffer->vertexSize * quad.vertexCount);
     memcpy(scene->canvas2dVertexBuffer->indices + scene->canvas2dVertexBuffer->indexCount, quad.indices, sizeof(u32) * quad.indexCount);
     
     // Register the amount of vertices added

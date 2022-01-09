@@ -4,22 +4,22 @@
 #define WIN32_OPENGL_MESH_H
 
 internal opengl_mesh
-opengl_make_mesh(u32 vertexCount, memory_arena *arena)
+opengl_make_mesh(u32 vertexCount, size_t vertexSize, memory_arena *arena)
 {
     opengl_mesh result = 
     {
-        .vertices = push_array(arena, vertexCount, opengl_vertex, 4),
+        .vertices = push_size(arena, vertexCount*vertexSize, 4),
         .vertexCount = vertexCount,
     };
     return result;
 }
 
 internal opengl_mesh_indexed
-opengl_make_mesh_indexed(u32 vertexCount, u32 indexCount, memory_arena *arena)
+opengl_make_mesh_indexed(u32 vertexCount, size_t vertexSize, u32 indexCount, memory_arena *arena)
 {
     opengl_mesh_indexed result = 
     {
-        .vertices = push_array(arena, vertexCount, opengl_vertex, 4),
+        .vertices = push_size(arena, vertexCount*vertexSize, 4),
         .vertexCount = vertexCount,
         .indices = push_array(arena, indexCount, u32, 4),
         .indexCount = indexCount,
@@ -30,7 +30,7 @@ opengl_make_mesh_indexed(u32 vertexCount, u32 indexCount, memory_arena *arena)
 internal opengl_mesh
 opengl_make_cube_mesh(v3 offset, v3 scale, memory_arena *arena)
 {
-    opengl_mesh cube = opengl_make_mesh(3*2*6, arena);
+    opengl_mesh cube = opengl_make_mesh(3*2*6, sizeof(f32)*8, arena);
     
     f32 minX = offset.x - 0.5f * scale.x;
     f32 maxX = offset.x + 0.5f * scale.x;
@@ -41,61 +41,61 @@ opengl_make_cube_mesh(v3 offset, v3 scale, memory_arena *arena)
     f32 minZ = offset.z - 0.5f * scale.z;
     f32 maxZ = offset.z + 0.5f * scale.z;
     
-    opengl_vertex data[] =
+    f32 data[] =
     {
         // Lower face
-        { { minX, minY, minZ }, {  0.0f,  0.0f }, {1,1,1} },
-        { { maxX, minY, minZ }, {  2.5f,  0.0f }, {1,1,1} },
-        { { maxX, maxY, minZ }, {  2.5f,  2.5f }, {1,1,1} },
+        minX,minY,minZ,  0.0f,0.0f,  1,1,1,
+        maxX,minY,minZ,  2.5f,0.0f,  1,1,1,
+        maxX,maxY,minZ,  2.5f,2.5f,  1,1,1,
         
-        { { minX, minY, minZ }, {  0.0f,  0.0f }, {1,1,1} },
-        { { maxX, maxY, minZ }, {  2.5f,  2.5f }, {1,1,1} },
-        { { minX, maxY, minZ }, {  0.0f,  2.5f }, {1,1,1} },
+        minX,minY,minZ,  0.0f,0.0f,  1,1,1,
+        maxX,maxY,minZ,  2.5f,2.5f,  1,1,1,
+        minX,maxY,minZ,  0.0f,2.5f,  1,1,1,
         
         // Upper face
-        { { minX, minY, maxZ }, {  0.0f,  0.0f }, {1,1,1} },
-        { { maxX, minY, maxZ }, {  2.5f,  0.0f }, {1,1,1} },
-        { { maxX, maxY, maxZ }, {  2.5f,  2.5f }, {1,1,1} },
+        minX,minY,maxZ,  0.0f,0.0f,  1,1,1,
+        maxX,minY,maxZ,  2.5f,0.0f,  1,1,1,
+        maxX,maxY,maxZ,  2.5f,2.5f,  1,1,1,
         
-        { { minX, minY, maxZ }, {  0.0f,  0.0f }, {1,1,1} },
-        { { maxX, maxY, maxZ }, {  2.5f,  2.5f }, {1,1,1} },
-        { { minX, maxY, maxZ }, {  0.0f,  2.5f }, {1,1,1} },
+        minX,minY,maxZ,  0.0f,0.0f,  1,1,1,
+        maxX,maxY,maxZ,  2.5f,2.5f,  1,1,1,
+        minX,maxY,maxZ,  0.0f,2.5f,  1,1,1,
         
-        // Front fa{1,1,1}e
-        { { minX, maxY, minZ }, {  0.0f,  0.0f }, {1,1,1} },
-        { { maxX, maxY, minZ }, {  2.5f,  0.0f }, {1,1,1} },
-        { { maxX, maxY, maxZ }, {  2.5f,  2.5f }, {1,1,1} },
+        // Front fa1,1,1e
+        minX,maxY,minZ,  0.0f,0.0f,  1,1,1,
+        maxX,maxY,minZ,  2.5f,0.0f,  1,1,1,
+        maxX,maxY,maxZ,  2.5f,2.5f,  1,1,1,
         
-        { { minX, maxY, minZ }, {  0.0f,  0.0f }, {1,1,1} },
-        { { maxX, maxY, maxZ }, {  2.5f,  2.5f }, {1,1,1} },
-        { { minX, maxY, maxZ }, {  0.0f,  2.5f }, {1,1,1} },
+        minX,maxY,minZ,  0.0f,0.0f,  1,1,1,
+        maxX,maxY,maxZ,  2.5f,2.5f,  1,1,1,
+        minX,maxY,maxZ,  0.0f,2.5f,  1,1,1,
         
-        // Ba{1,1,1}k fa{1,1,1}e
-        { { minX, minY, minZ }, {  0.0f,  0.0f }, {1,1,1} },
-        { { maxX, minY, minZ }, {  2.5f,  0.0f }, {1,1,1} },
-        { { maxX, minY, maxZ }, {  2.5f,  2.5f }, {1,1,1} },
+        // Ba1,1,1k fa1,1,1e
+        minX,minY,minZ,  0.0f,0.0f,  1,1,1,
+        maxX,minY,minZ,  2.5f,0.0f,  1,1,1,
+        maxX,minY,maxZ,  2.5f,2.5f,  1,1,1,
         
-        { { minX, minY, minZ }, {  0.0f,  0.0f }, {1,1,1} },
-        { { maxX, minY, maxZ }, {  2.5f,  2.5f }, {1,1,1} },
-        { { minX, minY, maxZ }, {  0.0f,  2.5f }, {1,1,1} },
+        minX,minY,minZ,  0.0f,0.0f,  1,1,1,
+        maxX,minY,maxZ,  2.5f,2.5f,  1,1,1,
+        minX,minY,maxZ,  0.0f,2.5f,  1,1,1,
         
-        // Left fa{1,1,1}e
-        { { minX, minY, minZ }, {  0.0f,  0.0f }, {1,1,1} },
-        { { minX, maxY, minZ }, {  2.5f,  0.0f }, {1,1,1} },
-        { { minX, maxY, maxZ }, {  2.5f,  2.5f }, {1,1,1} },
+        // Left fa1,1,1e
+        minX,minY,minZ,  0.0f,0.0f,  1,1,1,
+        minX,maxY,minZ,  2.5f,0.0f,  1,1,1,
+        minX,maxY,maxZ,  2.5f,2.5f,  1,1,1,
         
-        { { minX, minY, minZ }, {  0.0f,  0.0f }, {1,1,1} },
-        { { minX, maxY, maxZ }, {  2.5f,  2.5f }, {1,1,1} },
-        { { minX, minY, maxZ }, {  0.0f,  2.5f }, {1,1,1} },
+        minX,minY,minZ,  0.0f,0.0f,  1,1,1,
+        minX,maxY,maxZ,  2.5f,2.5f,  1,1,1,
+        minX,minY,maxZ,  0.0f,2.5f,  1,1,1,
         
-        // Right fa{1,1,1}e
-        { { maxX, minY, minZ }, {  0.0f,  0.0f }, {1,1,1} },
-        { { maxX, maxY, minZ }, {  2.5f,  0.0f }, {1,1,1} },
-        { { maxX, maxY, maxZ }, {  2.5f,  2.5f }, {1,1,1} },
+        // Right fa1,1,1e
+        maxX,minY,minZ,  0.0f,0.0f,  1,1,1,
+        maxX,maxY,minZ,  2.5f,0.0f,  1,1,1,
+        maxX,maxY,maxZ,  2.5f,2.5f,  1,1,1,
         
-        { { maxX, minY, minZ }, {  0.0f,  0.0f }, {1,1,1} },
-        { { maxX, maxY, maxZ }, {  2.5f,  2.5f }, {1,1,1} },
-        { { maxX, minY, maxZ }, {  0.0f,  2.5f }, {1,1,1} },
+        maxX,minY,minZ,  0.0f,0.0f,  1,1,1,
+        maxX,maxY,maxZ,  2.5f,2.5f,  1,1,1,
+        maxX,minY,maxZ,  0.0f,2.5f,  1,1,1,
     };
     
     memcpy(cube.vertices, data, sizeof(data));
@@ -106,7 +106,7 @@ opengl_make_cube_mesh(v3 offset, v3 scale, memory_arena *arena)
 internal opengl_mesh_indexed
 opengl_make_cube_mesh_indexed(v3 offset, v3 scale, memory_arena *arena, u32 indexBase, u32 textureType)
 {
-    opengl_mesh_indexed cube = opengl_make_mesh_indexed(4*6, 6*6, arena);
+    opengl_mesh_indexed cube = opengl_make_mesh_indexed(4*6, sizeof(f32)*8, 6*6, arena);
     
     f32 minX = offset.x - 0.5f * scale.x;
     f32 maxX = offset.x + 0.5f * scale.x;
@@ -141,43 +141,43 @@ opengl_make_cube_mesh_indexed(v3 offset, v3 scale, memory_arena *arena, u32 inde
     
     f32 g = 0.5f; // gray
     
-    opengl_vertex vertices[] =
+    f32 vertices[] =
     {
         // Front
-        { { minX, minY, maxZ }, { minU, minV }, {g,g,g} }, // 0
-        { { maxX, minY, maxZ }, { maxU, minV }, {g,g,g} }, // 1
-        { { maxX, maxY, maxZ }, { maxU, maxV }, {1,1,1} }, // 2
-        { { minX, maxY, maxZ }, { minU, maxV }, {1,1,1} }, // 3
+        minX, minY, maxZ,  minU, minV, g,g,g, // 0
+        maxX, minY, maxZ,  maxU, minV, g,g,g, // 1
+        maxX, maxY, maxZ,  maxU, maxV, 1,1,1, // 2
+        minX, maxY, maxZ,  minU, maxV, 1,1,1, // 3
         
         // Back
-        { { minX, maxY, minZ }, { minU, minV }, {1,1,1} }, // 5
-        { { maxX, maxY, minZ }, { maxU, minV }, {1,1,1} }, // 4
-        { { maxX, minY, minZ }, { maxU, maxV }, {g,g,g} }, // 6
-        { { minX, minY, minZ }, { minU, maxV }, {g,g,g} }, // 7
+        minX, maxY, minZ,  minU, minV, 1,1,1, // 5
+        maxX, maxY, minZ,  maxU, minV, 1,1,1, // 4
+        maxX, minY, minZ,  maxU, maxV, g,g,g, // 6
+        minX, minY, minZ,  minU, maxV, g,g,g, // 7
         
         // Upper
-        { { minX, maxY, maxZ }, { minU, minV }, {1,1,1} }, // 3
-        { { maxX, maxY, maxZ }, { maxU, minV }, {1,1,1} }, // 2
-        { { maxX, maxY, minZ }, { maxU, maxV }, {1,1,1} }, // 4
-        { { minX, maxY, minZ }, { minU, maxV }, {1,1,1} }, // 5
+        minX, maxY, maxZ,  minU, minV, 1,1,1, // 3
+        maxX, maxY, maxZ,  maxU, minV, 1,1,1, // 2
+        maxX, maxY, minZ,  maxU, maxV, 1,1,1, // 4
+        minX, maxY, minZ,  minU, maxV, 1,1,1, // 5
         
         // Lower
-        { { minX, minY, minZ }, { minU, minV }, {g,g,g} }, // 7
-        { { maxX, minY, minZ }, { maxU, minV }, {g,g,g} }, // 6
-        { { maxX, minY, maxZ }, { maxU, maxV }, {g,g,g} }, // 1
-        { { minX, minY, maxZ }, { minU, maxV }, {g,g,g} }, // 0
+        minX, minY, minZ,  minU, minV, g,g,g, // 7
+        maxX, minY, minZ,  maxU, minV, g,g,g, // 6
+        maxX, minY, maxZ,  maxU, maxV, g,g,g, // 1
+        minX, minY, maxZ,  minU, maxV, g,g,g, // 0
         
         // Left
-        { { minX, minY, minZ }, { minU, minV }, {g,g,g} }, // 7
-        { { minX, minY, maxZ }, { maxU, minV }, {g,g,g} }, // 0
-        { { minX, maxY, maxZ }, { maxU, maxV }, {1,1,1} }, // 3
-        { { minX, maxY, minZ }, { minU, maxV }, {1,1,1} }, // 5
+        minX, minY, minZ,  minU, minV, g,g,g, // 7
+        minX, minY, maxZ,  maxU, minV, g,g,g, // 0
+        minX, maxY, maxZ,  maxU, maxV, 1,1,1, // 3
+        minX, maxY, minZ,  minU, maxV, 1,1,1, // 5
         
         // Right
-        { { maxX, minY, maxZ }, { minU, minV }, {g,g,g} }, // 1
-        { { maxX, minY, minZ }, { maxU, minV }, {g,g,g} }, // 6
-        { { maxX, maxY, minZ }, { maxU, maxV }, {1,1,1} }, // 4
-        { { maxX, maxY, maxZ }, { minU, maxV }, {1,1,1} }, // 2
+        maxX, minY, maxZ,  minU, minV, g,g,g, // 1
+        maxX, minY, minZ,  maxU, minV, g,g,g, // 6
+        maxX, maxY, minZ,  maxU, maxV, 1,1,1, // 4
+        maxX, maxY, maxZ,  minU, maxV, 1,1,1, // 2
     };
     
     u32 indices[] =
@@ -210,7 +210,7 @@ opengl_make_cube_mesh_indexed(v3 offset, v3 scale, memory_arena *arena, u32 inde
 internal opengl_mesh_indexed
 opengl_make_quad_indexed(memory_arena *arena, v2 minPos, v2 maxPos, v2 minUV, v2 maxUV, u32 indexBase)
 {
-    opengl_mesh_indexed quad = opengl_make_mesh_indexed(4, 6, arena);
+    opengl_mesh_indexed quad = opengl_make_mesh_indexed(4, sizeof(f32)*8, 6, arena);
     
     f32 minX = minPos.x;
     f32 maxX = maxPos.x;
@@ -223,12 +223,12 @@ opengl_make_quad_indexed(memory_arena *arena, v2 minPos, v2 maxPos, v2 minUV, v2
     f32 maxU = maxUV.x;
     f32 maxV = maxUV.y;
     
-    opengl_vertex vertices[] =
+    f32 vertices[] =
     {
-        { { minX, minY, 0 }, { minU, minV }, {1,1,1} }, // 0
-        { { maxX, minY, 0 }, { maxU, minV }, {1,1,1} }, // 1
-        { { maxX, maxY, 0 }, { maxU, maxV }, {1,1,1} }, // 2
-        { { minX, maxY, 0 }, { minU, maxV }, {1,1,1} }, // 3
+        minX, minY, 0,  minU, minV, 1,1,1, // 0
+        maxX, minY, 0,  maxU, minV, 1,1,1, // 1
+        maxX, maxY, 0,  maxU, maxV, 1,1,1, // 2
+        minX, maxY, 0,  minU, maxV, 1,1,1, // 3
     };
     
     u32 indices[] =

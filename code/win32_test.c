@@ -21,7 +21,8 @@ opengl_vertexbuffer *mainTextVertexBuffer;
 
 opengl_renderpass *mainRenderPasses;
 
-GLuint mainPipeline;
+opengl_shader textureShader;
+opengl_shader lineShader;
 
 #include "perlin_test.c"
 #include "cubes_test.c"
@@ -47,9 +48,22 @@ WIN32_ENTRY()
     
     currentScene = scene_type_perlin_test;
     
-    // Main shaders
+    // Texture shader
     {
-        opengl_make_shaders(&os.gl, &mainPipeline, "shaders/main.vert", "shaders/main.frag");
+        char vShader[MAX_PATH];
+        char fShader[MAX_PATH];
+        string_concat(vShader, sizeof(vShader), os.rootPath, "\\..\\code\\shaders\\main.vert");
+        string_concat(fShader, sizeof(fShader), os.rootPath, "\\..\\code\\shaders\\main.frag");
+        textureShader = opengl_make_shader(&os.gl, vShader, fShader);
+    }
+    
+    // Lines shader
+    {
+        char vShader[MAX_PATH];
+        char fShader[MAX_PATH];
+        string_concat(vShader, sizeof(vShader), os.rootPath, "\\..\\code\\shaders\\lines.vert");
+        string_concat(fShader, sizeof(fShader), os.rootPath, "\\..\\code\\shaders\\lines.frag");
+        lineShader = opengl_make_shader(&os.gl, vShader, fShader);
     }
     
     // Main vertex buffers
@@ -60,11 +74,30 @@ WIN32_ENTRY()
         mainLinesVertexBuffer = &((opengl_vertexbuffer *)mainVertexBuffers.data)[0];
         mainTextVertexBuffer = &((opengl_vertexbuffer *)mainVertexBuffers.data)[1];
         
-        *mainLinesVertexBuffer = opengl_make_vertexbuffer(&platArena, 1000, 1000);
+        *mainLinesVertexBuffer = opengl_make_vertexbuffer(&platArena, sizeof(f32)*6, 1000, 1000);
         opengl_vertexbuffer_set_inputlayout(mainLinesVertexBuffer, 0, GL_FLOAT, 3, 0);
         opengl_vertexbuffer_set_inputlayout(mainLinesVertexBuffer, 1, GL_FLOAT, 3, sizeof(f32)*3);
         
-        *mainTextVertexBuffer = opengl_make_vertexbuffer(&platArena, 1000, 1000);
+        v3 color = V3(1, 0, 0);
+        f32 lineVertices[] =
+        {
+            0, 0, 0, color.r, color.g, color.b,
+            500, 500, 0, color.r, color.g, color.b,
+        };
+        u32 lineIndices[] =
+        {
+            0, 1,
+        };
+        
+        memcpy(mainLinesVertexBuffer->vertices + mainLinesVertexBuffer->vertexCount, lineVertices, sizeof(f32) * 6);
+        memcpy(mainLinesVertexBuffer->indices + mainLinesVertexBuffer->indexCount, lineIndices, sizeof(u32) * 2);
+        
+        mainLinesVertexBuffer->vertexCount += 2;
+        mainLinesVertexBuffer->indexCount += 2;
+        
+        opengl_upload_vertexbuffer_data(mainLinesVertexBuffer);
+        
+        *mainTextVertexBuffer = opengl_make_vertexbuffer(&platArena, sizeof(f32)*8, 1000, 1000);
         opengl_vertexbuffer_set_default_inputlayout(mainTextVertexBuffer);
     }
     
@@ -75,10 +108,10 @@ WIN32_ENTRY()
         mainRenderPasses = push_array(&platArena, 2, opengl_renderpass, 4);
         
         mainRenderPasses[0] = opengl_make_renderpass(mainLinesVertexBuffer, renderpass_primitive_lines, 0, 0, 
-                                                     noView, orthographicProj, mainPipeline);
+                                                     noView, orthographicProj, &lineShader);
         
         mainRenderPasses[1] = opengl_make_renderpass(mainTextVertexBuffer, renderpass_primitive_triangles,
-                                                     0, globalFontTexture, noView, orthographicProj, mainPipeline);
+                                                     0, globalFontTexture, noView, orthographicProj, &textureShader);
         
         
     }

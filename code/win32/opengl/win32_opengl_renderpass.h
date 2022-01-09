@@ -5,17 +5,17 @@
 
 internal opengl_renderpass 
 opengl_make_renderpass(opengl_vertexbuffer *b, renderpass_primitive primitiveType, 
-                       GLint texUnit, GLuint texHandle, mat4 view, mat4 proj, GLuint pipeline)
+                       GLint texUnit, GLuint texHandle, mat4 view, mat4 proj, opengl_shader *shader)
 {
     opengl_renderpass renderPass = 
     {
+        .shader = shader,
         .buffer = b,
         .primitiveType = primitiveType,
         .textureUnit = texUnit,
         .textureHandle = texHandle,
         .view = view,
         .proj = proj,
-        .pipeline = pipeline,
     };
     
     return renderPass;
@@ -26,10 +26,10 @@ opengl_execute_renderpass(opengl_context *gl, opengl_renderpass renderPass)
 {
     f32 aspect = (f32)gl->windowWidth / (f32)gl->windowHeight;
     
-    opengl_upload_uniforms(gl, &renderPass.view, &renderPass.proj);
+    opengl_upload_uniforms(gl, renderPass.shader, &renderPass.view, &renderPass.proj);
     
     // Activate shaders for next draw call
-    glBindProgramPipeline(renderPass.pipeline);
+    glBindProgramPipeline(renderPass.shader->pipeline);
     
     GLint textureUnit = renderPass.textureUnit;
     GLuint textureHandle = renderPass.textureHandle;

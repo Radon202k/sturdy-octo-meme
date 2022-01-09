@@ -78,7 +78,7 @@ cubes_scene_generate_cubes(cubes_scene_t *scene)
                                 opengl_mesh_indexed cube = opengl_make_cube_mesh_indexed(offset, size, arena, scene->cubesVertexBuffer->vertexCount, 
                                                                                          blockType);
                                 
-                                memcpy(scene->cubesVertexBuffer->vertices + scene->cubesVertexBuffer->vertexCount, cube.vertices, sizeof(opengl_vertex) * cube.vertexCount);
+                                memcpy(scene->cubesVertexBuffer->vertices + scene->cubesVertexBuffer->vertexCount, cube.vertices, scene->cubesVertexBuffer->vertexSize * cube.vertexCount);
                                 memcpy(scene->cubesVertexBuffer->indices + scene->cubesVertexBuffer->indexCount, cube.indices, sizeof(u32) * cube.indexCount);
                                 
                                 // Register the amount of vertices added
@@ -109,16 +109,16 @@ cubes_scene_make_vertexbuffers(memory_pool *scenePool)
     scene->textVertexBuffer = &((opengl_vertexbuffer *)scene->vertexBuffers.data)[2];
     
     // First vertex buffer, static cubes
-    *scene->cubesVertexBuffer = opengl_make_vertexbuffer(arena, 5000000, 500000);
+    *scene->cubesVertexBuffer = opengl_make_vertexbuffer(arena, sizeof(f32)*8, 5000000, 500000);
     cubes_scene_generate_cubes(scene);
     opengl_vertexbuffer_set_default_inputlayout(scene->cubesVertexBuffer);
     
     // Second vertex buffer, moving objects
-    *scene->movingVertexBuffer = opengl_make_vertexbuffer(arena, 10000, 10000);
+    *scene->movingVertexBuffer = opengl_make_vertexbuffer(arena, sizeof(f32)*8, 10000, 10000);
     opengl_vertexbuffer_set_default_inputlayout(scene->movingVertexBuffer);
     
     // Third vertex buffer, debug text
-    *scene->textVertexBuffer = opengl_make_vertexbuffer(arena, 1000, 1000);
+    *scene->textVertexBuffer = opengl_make_vertexbuffer(arena, sizeof(f32)*8, 1000, 1000);
     opengl_vertexbuffer_set_default_inputlayout(scene->textVertexBuffer);
 }
 
@@ -126,7 +126,11 @@ internal void
 cubes_scene_load_texture_atlas(cubes_scene_t *scene)
 {
     int x,y,n;
-    unsigned char *data = stbi_load("atlas.png", &x, &y, &n, 0);
+    
+    char atlasPath[MAX_PATH];
+    string_concat(atlasPath, sizeof(atlasPath), os.rootPath, "\\..\\code\\atlas.png");
+    
+    unsigned char *data = stbi_load(atlasPath, &x, &y, &n, 0);
     if (!data)
     {
         fatal_error("Failed to open image.");
@@ -196,13 +200,13 @@ cubes_scene_init(memory_pool *scenePool)
     scene->renderPasses = push_array(arena, 3, opengl_renderpass, 4);
     // Static cubes
     scene->renderPasses[0] = opengl_make_renderpass(scene->cubesVertexBuffer, renderpass_primitive_triangles, 
-                                                    0, scene->atlasTexture, cameraView, perspectiveProj, mainPipeline);
+                                                    0, scene->atlasTexture, cameraView, perspectiveProj, &textureShader);
     // Moving objects
     scene->renderPasses[1] = opengl_make_renderpass(scene->movingVertexBuffer, renderpass_primitive_triangles,
-                                                    0, scene->atlasTexture, cameraView, perspectiveProj, mainPipeline);
+                                                    0, scene->atlasTexture, cameraView, perspectiveProj, &textureShader);
     // Debug text
     scene->renderPasses[2] = opengl_make_renderpass(scene->textVertexBuffer, renderpass_primitive_triangles,
-                                                    0, globalFontTexture, noView, orthographicProj, mainPipeline);
+                                                    0, globalFontTexture, noView, orthographicProj, &textureShader);
 }
 
 internal void
@@ -320,7 +324,7 @@ cubes_scene_update(memory_pool *scenePool, f32 elapsedTime)
             opengl_mesh_indexed cube = opengl_make_cube_mesh_indexed(offset, size, arena, scene->movingVertexBuffer->vertexCount, 1);
             
             memcpy(scene->movingVertexBuffer->vertices + scene->movingVertexBuffer->vertexCount, 
-                   cube.vertices, sizeof(opengl_vertex) * cube.vertexCount);
+                   cube.vertices, scene->movingVertexBuffer->vertexSize * cube.vertexCount);
             
             memcpy(scene->movingVertexBuffer->indices + scene->movingVertexBuffer->indexCount, 
                    cube.indices, sizeof(u32) * cube.indexCount);

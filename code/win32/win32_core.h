@@ -41,6 +41,8 @@ typedef struct os_globals
     
     u8 *memoryPool;
     
+    char rootPath[MAX_PATH];
+    
 } os_globals;
 
 global os_globals os;
@@ -69,6 +71,8 @@ win32_init(void)
     
     memory_pool result = {0};
     memory_pool_init(&result, platBase, platSize, os.memoryPool, permSize, tranSize);
+    
+    win32_get_root_path(os.rootPath);
     
     return result;
 }
