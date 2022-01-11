@@ -119,7 +119,7 @@ perlin_scene_init(memory_pool *scenePool)
     
     scene->renderPasses = push_array(arena, 1, opengl_renderpass, 4);
     scene->renderPasses[0] = opengl_make_renderpass(scene->canvas2dVertexBuffer, renderpass_primitive_triangles,
-                                                    0, scene->noiseTexture, cameraView, perspectiveProj, &textureShader);
+                                                    0, scene->noiseTexture, 0, cameraView, perspectiveProj, &textureShader);
 }
 
 internal void

@@ -81,15 +81,15 @@ WIN32_ENTRY()
         v3 color = V3(1, 0, 0);
         f32 lineVertices[] =
         {
-            0, 0, 0, color.r, color.g, color.b,
-            500, 500, 0, color.r, color.g, color.b,
+            0, 0, -1, color.r, color.g, color.b,
+            500, 500, -1, color.r, color.g, color.b,
         };
         u32 lineIndices[] =
         {
             0, 1,
         };
         
-        memcpy(mainLinesVertexBuffer->vertices + mainLinesVertexBuffer->vertexCount, lineVertices, sizeof(f32) * 6);
+        memcpy(mainLinesVertexBuffer->vertices + mainLinesVertexBuffer->vertexCount, lineVertices, sizeof(f32) * 12);
         memcpy(mainLinesVertexBuffer->indices + mainLinesVertexBuffer->indexCount, lineIndices, sizeof(u32) * 2);
         
         mainLinesVertexBuffer->vertexCount += 2;
@@ -107,11 +107,11 @@ WIN32_ENTRY()
         mat4 orthographicProj = mat4_orthographic((f32)os.gl.windowWidth, (f32)os.gl.windowHeight).forward;
         mainRenderPasses = push_array(&platArena, 2, opengl_renderpass, 4);
         
-        mainRenderPasses[0] = opengl_make_renderpass(mainLinesVertexBuffer, renderpass_primitive_lines, 0, 0, 
+        mainRenderPasses[0] = opengl_make_renderpass(mainLinesVertexBuffer, renderpass_primitive_lines, 0, 0, 10,
                                                      noView, orthographicProj, &lineShader);
         
         mainRenderPasses[1] = opengl_make_renderpass(mainTextVertexBuffer, renderpass_primitive_triangles,
-                                                     0, globalFontTexture, noView, orthographicProj, &textureShader);
+                                                     0, globalFontTexture, 0, noView, orthographicProj, &textureShader);
         
         
     }

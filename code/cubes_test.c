@@ -69,16 +69,20 @@ cubes_scene_generate_cubes(cubes_scene_t *scene)
                             f32 y = (f32)(chunkY*(range*2*scale) + (j * size.y));
                             f32 z = (f32)(chunkZ*(range*2*scale) + (k * size.z));
                             
-                            f32 height = -10 + scene->noise2d[(s32)y * 32 + (s32)x];
+                            f32 height = (f32)((s32)(-10 + 16 * scene->noise2d[(s32)j * 32 + (s32)i]));
                             
                             if (1)
                             {
                                 v3 offset = {x,z + height,y};
                                 
-                                opengl_mesh_indexed cube = opengl_make_cube_mesh_indexed(offset, size, arena, scene->cubesVertexBuffer->vertexCount, 
+                                opengl_mesh_indexed cube = opengl_make_cube_mesh_indexed(offset, size, arena, 
+                                                                                         scene->cubesVertexBuffer->vertexCount, 
                                                                                          blockType);
                                 
-                                memcpy(scene->cubesVertexBuffer->vertices + scene->cubesVertexBuffer->vertexCount, cube.vertices, scene->cubesVertexBuffer->vertexSize * cube.vertexCount);
+                                u8 *ptr = (u8 *)scene->cubesVertexBuffer->vertices;
+                                size_t ptrOffset = scene->cubesVertexBuffer->vertexCount * scene->cubesVertexBuffer->vertexSize;
+                                memcpy(ptr + ptrOffset, cube.vertices, scene->cubesVertexBuffer->vertexSize * cube.vertexCount);
+                                
                                 memcpy(scene->cubesVertexBuffer->indices + scene->cubesVertexBuffer->indexCount, cube.indices, sizeof(u32) * cube.indexCount);
                                 
                                 // Register the amount of vertices added
@@ -110,8 +114,8 @@ cubes_scene_make_vertexbuffers(memory_pool *scenePool)
     
     // First vertex buffer, static cubes
     *scene->cubesVertexBuffer = opengl_make_vertexbuffer(arena, sizeof(f32)*8, 5000000, 500000);
-    cubes_scene_generate_cubes(scene);
     opengl_vertexbuffer_set_default_inputlayout(scene->cubesVertexBuffer);
+    cubes_scene_generate_cubes(scene);
     
     // Second vertex buffer, moving objects
     *scene->movingVertexBuffer = opengl_make_vertexbuffer(arena, sizeof(f32)*8, 10000, 10000);
@@ -164,12 +168,13 @@ cubes_scene_init(memory_pool *scenePool)
     
     cubes_scene_load_texture_atlas(scene);
     
-    scene->noiseOctave = 3;
-    scene->noiseBias = 0.2f;
+    scene->noiseOctave = 2;
+    scene->noiseBias = 20.2f;
     
     scene->noise2dSeed = push_array(arena, 32*32, f32, 4);
     scene->noise2d = push_array(arena, 32*32, f32, 4);
     
+    perlinlike_noise_seed(32*32, scene->noise2dSeed);
     perlinlike_noise2d(32, 32, scene->noiseOctave, scene->noiseBias, scene->noise2dSeed, scene->noise2d);
     
     // "Player"
@@ -200,13 +205,13 @@ cubes_scene_init(memory_pool *scenePool)
     scene->renderPasses = push_array(arena, 3, opengl_renderpass, 4);
     // Static cubes
     scene->renderPasses[0] = opengl_make_renderpass(scene->cubesVertexBuffer, renderpass_primitive_triangles, 
-                                                    0, scene->atlasTexture, cameraView, perspectiveProj, &textureShader);
+                                                    0, scene->atlasTexture, 0, cameraView, perspectiveProj, &textureShader);
     // Moving objects
     scene->renderPasses[1] = opengl_make_renderpass(scene->movingVertexBuffer, renderpass_primitive_triangles,
-                                                    0, scene->atlasTexture, cameraView, perspectiveProj, &textureShader);
+                                                    0, scene->atlasTexture, 0, cameraView, perspectiveProj, &textureShader);
     // Debug text
     scene->renderPasses[2] = opengl_make_renderpass(scene->textVertexBuffer, renderpass_primitive_triangles,
-                                                    0, globalFontTexture, noView, orthographicProj, &textureShader);
+                                                    0, globalFontTexture, 0, noView, orthographicProj, &textureShader);
 }
 
 internal void

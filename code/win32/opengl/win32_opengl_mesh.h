@@ -4,7 +4,7 @@
 #define WIN32_OPENGL_MESH_H
 
 internal opengl_mesh
-opengl_make_mesh(u32 vertexCount, size_t vertexSize, memory_arena *arena)
+opengl_make_mesh(u32 vertexCount, GLsizei vertexSize, memory_arena *arena)
 {
     opengl_mesh result = 
     {
@@ -15,7 +15,7 @@ opengl_make_mesh(u32 vertexCount, size_t vertexSize, memory_arena *arena)
 }
 
 internal opengl_mesh_indexed
-opengl_make_mesh_indexed(u32 vertexCount, size_t vertexSize, u32 indexCount, memory_arena *arena)
+opengl_make_mesh_indexed(u32 vertexCount, GLsizei vertexSize, u32 indexCount, memory_arena *arena)
 {
     opengl_mesh_indexed result = 
     {

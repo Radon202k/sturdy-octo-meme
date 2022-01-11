@@ -27,7 +27,7 @@ opengl_make_vertexbuffer(memory_arena *arena, GLsizei vertexSize, u32 maxVertexC
         .ebo = (GLuint)-1,
         .vertexSize = vertexSize,
         .vertexCount = 0,
-        .vertices = push_array(arena, maxVertexCount*8, f32, 4),
+        .vertices = push_size(arena, maxVertexCount*vertexSize, 4),
         .indexCount = 0,
         .indices = push_array(arena, maxIndexCount, u32, 4),
     };
@@ -45,7 +45,8 @@ opengl_make_vertexbuffer(memory_arena *arena, GLsizei vertexSize, u32 maxVertexC
 }
 
 internal void
-opengl_vertexbuffer_set_inputlayout(opengl_vertexbuffer *vertexBuffer, GLint index, GLenum type, GLint count, GLuint offset)
+opengl_vertexbuffer_set_inputlayout(opengl_vertexbuffer *vertexBuffer, GLint index, GLenum type, 
+                                    GLint count, GLuint offset)
 {
     glVertexArrayAttribFormat(vertexBuffer->vao, index, count, type, GL_FALSE, offset);
     glVertexArrayAttribBinding(vertexBuffer->vao, index, 0);

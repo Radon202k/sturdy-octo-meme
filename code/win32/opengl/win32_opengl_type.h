@@ -50,6 +50,7 @@ typedef struct opengl_renderpass
     renderpass_primitive primitiveType;
     GLint textureUnit;
     GLuint textureHandle;
+    u32 lineWidth;
     mat4 view;
     mat4 proj;
 } opengl_renderpass;
