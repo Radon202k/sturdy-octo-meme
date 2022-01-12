@@ -184,6 +184,10 @@ WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
             {
                 win32_handle_keyboardbutton(&os.keyboard.buttons[KEY_MINUS], msg);
             }
+            else if (wParam == VK_RETURN)
+            {
+                win32_handle_keyboardbutton(&os.keyboard.buttons[KEY_ENTER], msg);
+            }
             
         } break;
         

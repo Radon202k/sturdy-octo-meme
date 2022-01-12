@@ -81,7 +81,7 @@ WIN32_ENTRY()
         v3 color = V3(1, 0, 0);
         f32 lineVertices[] =
         {
-            0, 0, -1, color.r, color.g, color.b,
+            0, 400, -1, color.r, color.g, color.b,
             500, 500, -1, color.r, color.g, color.b,
         };
         u32 lineIndices[] =

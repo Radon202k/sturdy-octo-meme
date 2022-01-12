@@ -28,18 +28,18 @@ generate_cube(cubes_scene_t *scene, u32 x, u32 y, u32 z, u32 cubeDim,
               s32 chunkX, s32 chunkY, s32 chunkZ, u32 chunkDim,
               u32 blockType, f32 *noise2d)
 {
-    s32 height = (s32)(-10 + 16 * noise2d[y * chunkDim + x]);
+    s32 height = (s32)(-20 + 4 * noise2d[y * chunkDim + x]);
     
     if (1)
     {
         v3 offset = 
         {
-            chunkX * chunkDim + (f32)x,
-            chunkZ * chunkDim + (f32)z + (f32)height,
-            chunkY * chunkDim + (f32)y
+            (f32)(chunkX * (s32)chunkDim) + (f32)x,
+            (f32)(chunkZ * (s32)chunkDim) + (f32)z + (f32)height,
+            (f32)(chunkY * (s32)chunkDim) + (f32)y
         };
         
-        opengl_mesh_indexed cube = opengl_make_cube_mesh_indexed(offset, cubeDim, &scene->arenaPerm, 
+        opengl_mesh_indexed cube = opengl_make_cube_mesh_indexed(offset, cubeDim, &scene->arenaTran, 
                                                                  scene->cubesVertexBuffer->vertexCount, 
                                                                  blockType);
         
@@ -204,8 +204,8 @@ cubes_scene_init(memory_pool *scenePool)
     
     cubes_scene_load_texture_atlas(scene);
     
-    scene->noiseOctave = 2;
-    scene->noiseBias = 0.2f;
+    scene->noiseOctave = 3;
+    scene->noiseBias = 0.8f;
     
     // "Player"
     scene->cameraTarget = transform_get_default();
@@ -323,6 +323,17 @@ cubes_scene_update(memory_pool *scenePool, f32 elapsedTime)
         }
     }
     
+    if (os.keyboard.buttons[KEY_CONTROL].down &&
+        os.keyboard.buttons[KEY_ENTER].pressed)
+    {
+        // reset vertex buffer
+        scene->cubesVertexBuffer->indexCount = 0;
+        scene->cubesVertexBuffer->vertexCount = 0;
+        
+        // recalculate chunks
+        cubes_scene_generate_cubes(scene);
+    }
+    
     if (os.mouse.buttons[0].down)
     {
         if (os.keyboard.buttons[KEY_CONTROL].down)
@@ -375,7 +386,19 @@ cubes_scene_update(memory_pool *scenePool, f32 elapsedTime)
         scene->textVertexBuffer->vertexCount = 0;
         scene->textVertexBuffer->indexCount = 0;
         
-        stbtt_print(arena, scene->textVertexBuffer, 0, 2*30, "Cubes test scene");
+        u32 debugTextCount = 2;
+        
+        stbtt_print(arena, scene->textVertexBuffer, 0, (debugTextCount++)*30.0f, "Cubes test scene");
+        
+        char labelOctaves[256];
+        label_make_f32(labelOctaves, sizeof(labelOctaves), "Octaves: ", (f32)scene->noiseOctave);
+        stbtt_print(arena, scene->textVertexBuffer, 0, (debugTextCount++)*30.0f, labelOctaves);
+        
+        char labelBias[256];
+        label_make_f32(labelBias, sizeof(labelBias), "Bias: ", scene->noiseBias);
+        stbtt_print(arena, scene->textVertexBuffer, 0, (debugTextCount++)*30.0f, labelBias);
+        
+        
         
         opengl_upload_vertexbuffer_data(scene->textVertexBuffer);
     }

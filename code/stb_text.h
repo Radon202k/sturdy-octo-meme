@@ -38,6 +38,12 @@ void stbtt_initfont(memory_arena *arena)
     opengl_make_texture(&globalFontTexture, 512, 512, output, GL_RGBA, GL_LINEAR);
 }
 
+internal void
+label_make_f32(char *dest, u32 destSize, char *name, f32 value)
+{
+    sprintf_s(dest, destSize, "%s: %.4f", name, value);
+}
+
 void stbtt_print(memory_arena *arena, opengl_vertexbuffer *b, float x, float y, char *text)
 {
     while (*text)

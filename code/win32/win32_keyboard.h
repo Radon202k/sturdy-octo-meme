@@ -9,6 +9,7 @@ enum keyboard_key
     KEY_SHIFT,
     KEY_ALT,
     KEY_SPACE,
+    KEY_ENTER,
     
     KEY_0,
     KEY_1,
