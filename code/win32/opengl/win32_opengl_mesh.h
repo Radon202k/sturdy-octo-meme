@@ -104,18 +104,18 @@ opengl_make_cube_mesh(v3 offset, v3 scale, memory_arena *arena)
 }
 
 internal opengl_mesh_indexed
-opengl_make_cube_mesh_indexed(v3 offset, v3 scale, memory_arena *arena, u32 indexBase, u32 textureType)
+opengl_make_cube_mesh_indexed(v3 offset, u32 scale, memory_arena *arena, u32 indexBase, u32 textureType)
 {
     opengl_mesh_indexed cube = opengl_make_mesh_indexed(4*6, sizeof(f32)*8, 6*6, arena);
     
-    f32 minX = offset.x - 0.5f * scale.x;
-    f32 maxX = offset.x + 0.5f * scale.x;
+    f32 minX = offset.x - 0.5f * scale;
+    f32 maxX = offset.x + 0.5f * scale;
     
-    f32 minY = offset.y - 0.5f * scale.y;
-    f32 maxY = offset.y + 0.5f * scale.y;
+    f32 minY = offset.y - 0.5f * scale;
+    f32 maxY = offset.y + 0.5f * scale;
     
-    f32 minZ = offset.z - 0.5f * scale.z;
-    f32 maxZ = offset.z + 0.5f * scale.z;
+    f32 minZ = offset.z - 0.5f * scale;
+    f32 maxZ = offset.z + 0.5f * scale;
     
     u32 atlasX = 16;
     u32 atlasY = 16;
