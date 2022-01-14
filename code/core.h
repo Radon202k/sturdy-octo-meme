@@ -14,10 +14,10 @@
 
 #define array_count(a) (sizeof(a) / sizeof((a)[0]))
 
-internal typeless_vector
+internal typeless_vector_t
 make_typeless_vector(u32 count, u32 dataSize)
 {
-    typeless_vector result =
+    typeless_vector_t result =
     {
         .count = count,
         .data = malloc(count * dataSize),

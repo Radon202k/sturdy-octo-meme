@@ -36,7 +36,7 @@ GL_FUNCTIONS(X)
 #define STR(x) STR2(x)
 
 internal void
-opengl_load_extensions(opengl_context *gl, HDC hdc)
+opengl_load_extensions(gl_context_t *gl, HDC hdc)
 {
     char *version = glGetString(GL_VERSION);
     

@@ -21,7 +21,7 @@
 
 #include "win32_keyboard.h"
 
-typedef struct os_globals
+typedef struct system_context_t
 {
     b32 initialized;
     b32 window_is_open;
@@ -31,10 +31,10 @@ typedef struct os_globals
 #endif
     
 #ifdef OPENGL_RENDERER
-    opengl_context gl;
+    gl_context_t gl;
 #endif
     
-    os_mouse mouse;
+    mouse_t mouse;
     os_keyboard keyboard;
     
     f32 perfFrequency;
@@ -43,15 +43,15 @@ typedef struct os_globals
     
     char rootPath[MAX_PATH];
     
-} os_globals;
+} system_context_t;
 
-global os_globals os;
+global system_context_t os;
 
 #include "win32_mouse.h"
 #include "win32_events.h"
 #include "win32_time.h"
 
-internal memory_pool
+internal memory_pool_t
 win32_init(void)
 {
     // Time
@@ -69,7 +69,7 @@ win32_init(void)
     size_t poolSize = permSize + tranSize;
     win32_allocate_memory_pool((void *)terabytes(2), &os.memoryPool, poolSize);
     
-    memory_pool result = {0};
+    memory_pool_t result = {0};
     memory_pool_init(&result, platBase, platSize, os.memoryPool, permSize, tranSize);
     
     win32_get_root_path(os.rootPath);

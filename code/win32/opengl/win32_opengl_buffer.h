@@ -4,23 +4,23 @@
 #define WIN32_OPENGL_VERTEXBUFFER_H
 
 internal void
-opengl_upload_vertexbuffer_data_immutable(opengl_vertexbuffer *b)
+opengl_upload_vbuffer_data_immutable(gl_vbuffer_t *b)
 {
     glNamedBufferStorage(b->vbo, b->vertexSize * b->vertexCount, b->vertices, 0);
     glNamedBufferData(b->ebo, sizeof(u32) * b->indexCount, b->indices, GL_STATIC_DRAW);
 }
 
 internal void
-opengl_upload_vertexbuffer_data(opengl_vertexbuffer *b)
+opengl_upload_vbuffer_data(gl_vbuffer_t *b)
 {
     glNamedBufferData(b->vbo, b->vertexSize * b->vertexCount, b->vertices, GL_DYNAMIC_DRAW);
     glNamedBufferData(b->ebo, sizeof(u32) * b->indexCount, b->indices, GL_DYNAMIC_DRAW);
 }
 
-internal opengl_vertexbuffer
-opengl_make_vertexbuffer(memory_arena *arena, GLsizei vertexSize, u32 maxVertexCount, u32 maxIndexCount)
+internal gl_vbuffer_t
+opengl_make_vbuffer(memory_arena_t *arena, GLsizei vertexSize, u32 maxVertexCount, u32 maxIndexCount)
 {
-    opengl_vertexbuffer result = 
+    gl_vbuffer_t result = 
     {
         .vao = (GLuint)-1,
         .vbo = (GLuint)-1,
@@ -45,8 +45,8 @@ opengl_make_vertexbuffer(memory_arena *arena, GLsizei vertexSize, u32 maxVertexC
 }
 
 internal void
-opengl_vertexbuffer_set_inputlayout(opengl_vertexbuffer *vertexBuffer, GLint index, GLenum type, 
-                                    GLint count, GLuint offset)
+opengl_vbuffer_set_inputlayout(gl_vbuffer_t *vertexBuffer, GLint index, GLenum type, 
+                               GLint count, GLuint offset)
 {
     glVertexArrayAttribFormat(vertexBuffer->vao, index, count, type, GL_FALSE, offset);
     glVertexArrayAttribBinding(vertexBuffer->vao, index, 0);
@@ -54,16 +54,16 @@ opengl_vertexbuffer_set_inputlayout(opengl_vertexbuffer *vertexBuffer, GLint ind
 }
 
 internal void
-opengl_vertexbuffer_set_default_inputlayout(opengl_vertexbuffer *vertexBuffer)
+opengl_vbuffer_set_default_inputlayout(gl_vbuffer_t *vertexBuffer)
 {
     // Vao's input layout
-    opengl_vertexbuffer_set_inputlayout(vertexBuffer, 0, GL_FLOAT, 3, 0);
-    opengl_vertexbuffer_set_inputlayout(vertexBuffer, 1, GL_FLOAT, 2, sizeof(f32)*3);
-    opengl_vertexbuffer_set_inputlayout(vertexBuffer, 2, GL_FLOAT, 3, sizeof(f32)*5);
+    opengl_vbuffer_set_inputlayout(vertexBuffer, 0, GL_FLOAT, 3, 0);
+    opengl_vbuffer_set_inputlayout(vertexBuffer, 1, GL_FLOAT, 2, sizeof(f32)*3);
+    opengl_vbuffer_set_inputlayout(vertexBuffer, 2, GL_FLOAT, 3, sizeof(f32)*5);
 }
 
 internal void
-opengl_upload_uniforms(opengl_context *gl, opengl_shader *shader, mat4 *view, mat4 *proj)
+opengl_upload_uniforms(gl_context_t *gl, gl_shader_t *shader, mat4 *view, mat4 *proj)
 {
     gl->angle += 0.02f * 2.0f * 3.1415f / 20.0f; // full rotation in 20 seconds
     gl->angle = fmodf(gl->angle, 2.0f * 3.1415f);

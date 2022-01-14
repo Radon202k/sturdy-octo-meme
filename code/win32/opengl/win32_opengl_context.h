@@ -4,7 +4,7 @@
 #define WIN32_OPENGL_CONTEXT_H
 
 internal void
-opengl_set_pixelformat(opengl_context *gl, HDC hdc)
+opengl_set_pixelformat(gl_context_t *gl, HDC hdc)
 {
     PIXELFORMATDESCRIPTOR pixelFormat =
     {
@@ -34,7 +34,7 @@ opengl_set_pixelformat(opengl_context *gl, HDC hdc)
 }
 
 internal void
-opengl_prepare_modern_context(opengl_context *gl)
+opengl_prepare_modern_context(gl_context_t *gl)
 {
     // Make a dummy window / device context
     HWND hwnd = CreateWindowExW(0, L"STATIC", L"DummyWindow", WS_OVERLAPPED, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, 0, 0, 0, 0);
@@ -62,7 +62,7 @@ opengl_prepare_modern_context(opengl_context *gl)
 }
 
 internal void
-opengl_set_pixelformat_wgl(opengl_context *gl)
+opengl_set_pixelformat_wgl(gl_context_t *gl)
 {
     int attrib[] =
     {
@@ -104,7 +104,7 @@ opengl_set_pixelformat_wgl(opengl_context *gl)
 }
 
 internal void
-opengl_make_modern_context(opengl_context *gl)
+opengl_make_modern_context(gl_context_t *gl)
 {
     opengl_set_pixelformat_wgl(gl);
     
@@ -139,7 +139,7 @@ opengl_make_modern_context(opengl_context *gl)
 }
 
 internal void
-opengl_set_global_state(opengl_context *gl)
+opengl_set_global_state(gl_context_t *gl)
 {
     // Enable alpha blending
     glEnable(GL_BLEND);

@@ -3,7 +3,7 @@
 #ifndef WIN32_TYPES_H
 #define WIN32_TYPES_H
 
-typedef struct os_button
+typedef struct button_t
 {
     // Fires once
     b32 pressed;
@@ -11,12 +11,12 @@ typedef struct os_button
     
     // Fires every frame
     b32 down;
-} os_button;
+} button_t;
 
-typedef struct os_mouse
+typedef struct mouse_t
 {
-    POINTS pos;
-    os_button buttons[3];
-} os_mouse;
+    v2 pos;
+    button_t buttons[3];
+} mouse_t;
 
 #endif //WIN32_TYPES_H

@@ -6,11 +6,12 @@
 internal void
 win32_handle_mousemove(LPARAM lParam)
 {
-    os.mouse.pos = MAKEPOINTS(lParam); 
+    POINTS pos = MAKEPOINTS(lParam);
+    os.mouse.pos = V2(pos.x, pos.y); 
 }
 
 internal void
-win32_handle_mousebutton(os_button *button, UINT msg)
+win32_handle_mousebutton(button_t *button, UINT msg)
 {
     b32 down = 0;
     

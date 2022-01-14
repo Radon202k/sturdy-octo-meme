@@ -14,7 +14,7 @@
 #include "win32_opengl_renderpass.h"
 
 internal void
-opengl_init(opengl_context *gl, u32 x, u32 y, u32 w, u32 h, char *title, memory_arena *arena)
+opengl_init(gl_context_t *gl, u32 x, u32 y, u32 w, u32 h, char *title, memory_arena_t *arena)
 {
     opengl_prepare_modern_context(gl);
     
@@ -37,7 +37,7 @@ opengl_init(opengl_context *gl, u32 x, u32 y, u32 w, u32 h, char *title, memory_
 }
 
 internal void
-opengl_begin_frame(opengl_context *gl)
+opengl_begin_frame(gl_context_t *gl)
 {
     // Setup output size covering all client area of window
     glViewport(0, 0, gl->windowWidth, gl->windowHeight);
@@ -48,7 +48,7 @@ opengl_begin_frame(opengl_context *gl)
 }
 
 internal void
-opengl_end_frame(opengl_context *gl)
+opengl_end_frame(gl_context_t *gl)
 {
     // Swap the buffers to show output
     if (!SwapBuffers(gl->hdc))
@@ -58,7 +58,7 @@ opengl_end_frame(opengl_context *gl)
 }
 
 internal void
-opengl_cleanup(opengl_context *gl)
+opengl_cleanup(gl_context_t *gl)
 {
     
 }

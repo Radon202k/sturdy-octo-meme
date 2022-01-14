@@ -3,29 +3,23 @@
 #ifndef WIN32_OPENGL_TYPES_H
 #define WIN32_OPENGL_TYPES_H
 
-typedef struct opengl_shader
+typedef struct gl_shader_t
 {
     GLuint vShader;
     GLuint fShader;
     GLuint pipeline;
-} opengl_shader;
+} gl_shader_t;
 
-typedef struct opengl_mesh
-{
-    f32 *vertices;
-    u32 vertexCount;
-} opengl_mesh;
-
-typedef struct opengl_mesh_indexed
+typedef struct gl_mesh_t
 {
     f32 *vertices;
     u32 vertexCount;
     
     u32 *indices;
     u32 indexCount;
-} opengl_mesh_indexed;
+} gl_mesh_t;
 
-typedef struct opengl_vertexbuffer
+typedef struct gl_vbuffer_t
 {
     GLuint vao;
     GLuint vbo;
@@ -35,27 +29,27 @@ typedef struct opengl_vertexbuffer
     f32 *vertices;
     u32 indexCount;
     u32 *indices;
-} opengl_vertexbuffer;
+} gl_vbuffer_t;
 
-typedef enum renderpass_primitive
+typedef enum gl_primitive_t
 {
-    renderpass_primitive_triangles,
-    renderpass_primitive_lines,
-} renderpass_primitive;
+    gl_primitive_triangles,
+    gl_primitive_lines,
+} gl_primitive_t;
 
-typedef struct opengl_renderpass
+typedef struct gl_renderpass_t
 {
-    opengl_vertexbuffer *buffer;
-    opengl_shader *shader;
-    renderpass_primitive primitiveType;
+    gl_vbuffer_t *buffer;
+    gl_shader_t *shader;
+    gl_primitive_t primitiveType;
     GLint textureUnit;
     GLuint textureHandle;
     u32 lineWidth;
     mat4 view;
     mat4 proj;
-} opengl_renderpass;
+} gl_renderpass_t;
 
-typedef struct opengl_context
+typedef struct gl_context_t
 {
     HWND hwnd;
     u32 windowWidth;
@@ -70,6 +64,6 @@ typedef struct opengl_context
     PFNWGLSWAPINTERVALEXTPROC wglSwapIntervalEXT;
     PFNWGLGETEXTENSIONSSTRINGARBPROC wglGetExtensionsStringARB;
     
-} opengl_context;
+} gl_context_t;
 
 #endif //WIN32_OPENGL_TYPES_H

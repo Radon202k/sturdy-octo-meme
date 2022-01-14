@@ -39,11 +39,11 @@ enum keyboard_key
 
 typedef struct os_keyboard
 {
-    os_button buttons[KEY_COUNT];
+    button_t buttons[KEY_COUNT];
 } os_keyboard;
 
 internal void
-win32_handle_keyboardbutton(os_button *button, UINT msg)
+win32_handle_keyboardbutton(button_t *button, UINT msg)
 {
     b32 down = 0;
     

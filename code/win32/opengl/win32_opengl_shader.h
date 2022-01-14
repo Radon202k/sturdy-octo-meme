@@ -3,10 +3,10 @@
 #ifndef WIN32_OPENGL_SHADER_H
 #define WIN32_OPENGL_SHADER_H
 
-internal opengl_shader
-opengl_make_shader(opengl_context *gl, char *vertexFile, char *fragmentFile)
+internal gl_shader_t
+opengl_make_shader(gl_context_t *gl, char *vertexFile, char *fragmentFile)
 {
-    opengl_shader result = {0};
+    gl_shader_t result = {0};
     
     binary_file vShaderFile = read_entire_file(vertexFile);
     binary_file fShaderFile = read_entire_file(fragmentFile);

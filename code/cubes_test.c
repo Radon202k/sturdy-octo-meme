@@ -1,7 +1,7 @@
 typedef struct cubes_scene_t
 {
-    memory_arena arenaPerm;
-    memory_arena arenaTran;
+    memory_arena_t arenaPerm;
+    memory_arena_t arenaTemp;
     
     GLuint atlasTexture;
     
@@ -14,12 +14,12 @@ typedef struct cubes_scene_t
     v2 mousePos;
     v2 lastMousePos;
     
-    typeless_vector vertexBuffers;
-    opengl_vertexbuffer *cubesVertexBuffer;
-    opengl_vertexbuffer *movingVertexBuffer;
-    opengl_vertexbuffer *textVertexBuffer;
+    typeless_vector_t vertexBuffers;
+    gl_vbuffer_t *cubesVertexBuffer;
+    gl_vbuffer_t *movingVertexBuffer;
+    gl_vbuffer_t *textVertexBuffer;
     
-    opengl_renderpass *renderPasses;
+    gl_renderpass_t *renderPasses;
     
 } cubes_scene_t;
 
@@ -35,13 +35,13 @@ generate_cube(cubes_scene_t *scene, u32 x, u32 y, u32 z, u32 cubeDim,
         v3 offset = 
         {
             (f32)(chunkX * (s32)chunkDim) + (f32)x,
-            (f32)(chunkZ * (s32)chunkDim) + (f32)z + (f32)height,
+            (f32)(chunkZ * (s32)1) + (f32)z + (f32)height,
             (f32)(chunkY * (s32)chunkDim) + (f32)y
         };
         
-        opengl_mesh_indexed cube = opengl_make_cube_mesh_indexed(offset, cubeDim, &scene->arenaTran, 
-                                                                 scene->cubesVertexBuffer->vertexCount, 
-                                                                 blockType);
+        gl_mesh_t cube = opengl_make_cube_mesh(offset, cubeDim, &scene->arenaTemp, 
+                                               scene->cubesVertexBuffer->vertexCount, 
+                                               blockType);
         
         // Copy generated data to cubes' vertex buffer
         u8 *ptr = (u8 *)scene->cubesVertexBuffer->vertices;
@@ -61,9 +61,10 @@ generate_chunk(cubes_scene_t *scene, u32 chunkDim, s32 chunkX, s32 chunkY, s32 c
 {
     s32 range = chunkDim/2;
     
-    u32 blockType = rand() % 10 + chunkX;
+    // u32 blockType = rand() % 10 + chunkX;
+    u32 blockType = 0;
     
-    temp_memory mem = begin_temp_memory(&scene->arenaTran);
+    temp_memory_t mem = begin_temp_memory(&scene->arenaTemp);
     
     u32 chunkDimSq = chunkDim*chunkDim;
     
@@ -104,13 +105,13 @@ generate_chunk(cubes_scene_t *scene, u32 chunkDim, s32 chunkX, s32 chunkY, s32 c
 internal void
 cubes_scene_generate_cubes(cubes_scene_t *scene)
 {
-    memory_arena *arena = &scene->arenaPerm;
+    memory_arena_t *arena = &scene->arenaPerm;
     s32 chunkRange = 1;
     
     s32 totalWidth = 5;
     s32 totalHeight = 5;
     
-    u32 chunkDim = 8;
+    u32 chunkDim = 32;
     
     for (s32 chunkZ = 1;
          chunkZ <= 1;
@@ -129,34 +130,34 @@ cubes_scene_generate_cubes(cubes_scene_t *scene)
         }
     }
     
-    opengl_upload_vertexbuffer_data(scene->cubesVertexBuffer);
+    opengl_upload_vbuffer_data(scene->cubesVertexBuffer);
 }
 
 internal void
-cubes_scene_make_vertexbuffers(memory_pool *scenePool)
+cubes_scene_make_vertexbuffers(memory_pool_t *scenePool)
 {
     cubes_scene_t *scene = (cubes_scene_t *)scenePool->permBase;
-    memory_arena *arena = &scene->arenaPerm;
+    memory_arena_t *arena = &scene->arenaPerm;
     
     // Make vertex buffer array
-    scene->vertexBuffers = make_typeless_vector(3, sizeof(opengl_vertexbuffer));
+    scene->vertexBuffers = make_typeless_vector(3, sizeof(gl_vbuffer_t));
     
-    scene->cubesVertexBuffer = &((opengl_vertexbuffer *)scene->vertexBuffers.data)[0];
-    scene->movingVertexBuffer = &((opengl_vertexbuffer *)scene->vertexBuffers.data)[1];
-    scene->textVertexBuffer = &((opengl_vertexbuffer *)scene->vertexBuffers.data)[2];
+    scene->cubesVertexBuffer = &((gl_vbuffer_t *)scene->vertexBuffers.data)[0];
+    scene->movingVertexBuffer = &((gl_vbuffer_t *)scene->vertexBuffers.data)[1];
+    scene->textVertexBuffer = &((gl_vbuffer_t *)scene->vertexBuffers.data)[2];
     
     // First vertex buffer, static cubes
-    *scene->cubesVertexBuffer = opengl_make_vertexbuffer(arena, sizeof(f32)*8, 5000000, 500000);
-    opengl_vertexbuffer_set_default_inputlayout(scene->cubesVertexBuffer);
+    *scene->cubesVertexBuffer = opengl_make_vbuffer(arena, sizeof(f32)*8, 5000000, 500000);
+    opengl_vbuffer_set_default_inputlayout(scene->cubesVertexBuffer);
     cubes_scene_generate_cubes(scene);
     
     // Second vertex buffer, moving objects
-    *scene->movingVertexBuffer = opengl_make_vertexbuffer(arena, sizeof(f32)*8, 10000, 10000);
-    opengl_vertexbuffer_set_default_inputlayout(scene->movingVertexBuffer);
+    *scene->movingVertexBuffer = opengl_make_vbuffer(arena, sizeof(f32)*8, 10000, 10000);
+    opengl_vbuffer_set_default_inputlayout(scene->movingVertexBuffer);
     
     // Third vertex buffer, debug text
-    *scene->textVertexBuffer = opengl_make_vertexbuffer(arena, sizeof(f32)*8, 1000, 1000);
-    opengl_vertexbuffer_set_default_inputlayout(scene->textVertexBuffer);
+    *scene->textVertexBuffer = opengl_make_vbuffer(arena, sizeof(f32)*8, 1000, 1000);
+    opengl_vbuffer_set_default_inputlayout(scene->textVertexBuffer);
 }
 
 internal void
@@ -178,7 +179,7 @@ cubes_scene_load_texture_atlas(cubes_scene_t *scene)
 }
 
 internal void
-cubes_scene_update_renderpasses(opengl_renderpass renderPasses[], camera_t *camera)
+cubes_scene_update_renderpasses(gl_renderpass_t renderPasses[], camera_t *camera)
 {
     renderPasses[0].view = camera_make_view_matrix(camera);
     renderPasses[1].view = camera_make_view_matrix(camera);
@@ -190,17 +191,17 @@ cubes_scene_update_renderpasses(opengl_renderpass renderPasses[], camera_t *came
 }
 
 internal void
-cubes_scene_init(memory_pool *scenePool)
+cubes_scene_init(memory_pool_t *scenePool)
 {
     cubes_scene_t *scene = (cubes_scene_t *)scenePool->permBase;
     
     arena_init(&scene->arenaPerm, scenePool->permSize - sizeof(cubes_scene_t),
                (u8 *)scenePool->permBase + sizeof(cubes_scene_t));
     
-    arena_init(&scene->arenaTran, scenePool->tranSize, (u8 *)scenePool->tranBase);
+    arena_init(&scene->arenaTemp, scenePool->tempSize, (u8 *)scenePool->tempBase);
     
     
-    memory_arena *arena = &scene->arenaPerm;
+    memory_arena_t *arena = &scene->arenaPerm;
     
     cubes_scene_load_texture_atlas(scene);
     
@@ -232,26 +233,26 @@ cubes_scene_init(memory_pool *scenePool)
     
     // Render passes
     
-    scene->renderPasses = push_array(arena, 3, opengl_renderpass, 4);
+    scene->renderPasses = push_array(arena, 3, gl_renderpass_t, 4);
     // Static cubes
-    scene->renderPasses[0] = opengl_make_renderpass(scene->cubesVertexBuffer, renderpass_primitive_triangles, 
+    scene->renderPasses[0] = opengl_make_renderpass(scene->cubesVertexBuffer, gl_primitive_triangles, 
                                                     0, scene->atlasTexture, 0, cameraView, perspectiveProj, &textureShader);
     // Moving objects
-    scene->renderPasses[1] = opengl_make_renderpass(scene->movingVertexBuffer, renderpass_primitive_triangles,
+    scene->renderPasses[1] = opengl_make_renderpass(scene->movingVertexBuffer, gl_primitive_triangles,
                                                     0, scene->atlasTexture, 0, cameraView, perspectiveProj, &textureShader);
     // Debug text
-    scene->renderPasses[2] = opengl_make_renderpass(scene->textVertexBuffer, renderpass_primitive_triangles,
+    scene->renderPasses[2] = opengl_make_renderpass(scene->textVertexBuffer, gl_primitive_triangles,
                                                     0, globalFontTexture, 0, noView, orthographicProj, &textureShader);
 }
 
 internal void
-cubes_scene_update(memory_pool *scenePool, f32 elapsedTime)
+cubes_scene_update(memory_pool_t *scenePool, f32 elapsedTime)
 {
     cubes_scene_t *scene = (cubes_scene_t *)scenePool->permBase;
     
-    memory_arena *arena = &scene->arenaPerm;
+    memory_arena_t *arena = &scene->arenaPerm;
     
-    arena_init(&scene->arenaTran, scenePool->tranSize, (u8 *)scenePool->tranBase);
+    arena_init(&scene->arenaTemp, scenePool->tempSize, (u8 *)scenePool->tempBase);
     
     
     scene->mousePos.x = os.mouse.pos.x;
@@ -346,12 +347,12 @@ cubes_scene_update(memory_pool *scenePool, f32 elapsedTime)
         else
         {
             scene->camera.pitch += elapsedTime * 0.1f * deltaMousePos.y;
-            scene->camera.angleAroundTarget += 0.1f * elapsedTime * deltaMousePos.x;
+            scene->camera.angleAroundTarget += elapsedTime * 0.1f * deltaMousePos.x;
         }
     }
     
     // Begin temporary memory
-    temp_memory mem = begin_temp_memory(arena);
+    temp_memory_t mem = begin_temp_memory(arena);
     
     // Update moving objects' vertex buffer
     {
@@ -362,7 +363,7 @@ cubes_scene_update(memory_pool *scenePool, f32 elapsedTime)
         {
             // Player
             v3 offset = scene->cameraTarget.translation;
-            opengl_mesh_indexed cube = opengl_make_cube_mesh_indexed(offset, 3, arena, scene->movingVertexBuffer->vertexCount, 1);
+            gl_mesh_t cube = opengl_make_cube_mesh(offset, 3, arena, scene->movingVertexBuffer->vertexCount, 1);
             
             memcpy(scene->movingVertexBuffer->vertices + scene->movingVertexBuffer->vertexCount, 
                    cube.vertices, scene->movingVertexBuffer->vertexSize * cube.vertexCount);
@@ -378,7 +379,7 @@ cubes_scene_update(memory_pool *scenePool, f32 elapsedTime)
         
 #endif
         
-        opengl_upload_vertexbuffer_data(scene->movingVertexBuffer);
+        opengl_upload_vbuffer_data(scene->movingVertexBuffer);
     }
     
     // Debug text
@@ -400,7 +401,7 @@ cubes_scene_update(memory_pool *scenePool, f32 elapsedTime)
         
         
         
-        opengl_upload_vertexbuffer_data(scene->textVertexBuffer);
+        opengl_upload_vbuffer_data(scene->textVertexBuffer);
     }
     
     // End temporary memory

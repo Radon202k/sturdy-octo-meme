@@ -9,7 +9,7 @@ unsigned char temp_bitmap[512*512];
 stbtt_bakedchar cdata[96]; // ASCII 32..126 is 95 glyphs
 GLuint globalFontTexture;
 
-void stbtt_initfont(memory_arena *arena)
+void stbtt_initfont(memory_arena_t *arena)
 {
     fread(ttf_buffer, 1, 1<<20, fopen("c:/windows/fonts/times.ttf", "rb"));
     stbtt_BakeFontBitmap(ttf_buffer,0, 32.0, temp_bitmap,512,512, 32,96, cdata); // no guarantee this fits!
@@ -44,7 +44,7 @@ label_make_f32(char *dest, u32 destSize, char *name, f32 value)
     sprintf_s(dest, destSize, "%s: %.4f", name, value);
 }
 
-void stbtt_print(memory_arena *arena, opengl_vertexbuffer *b, float x, float y, char *text)
+void stbtt_print(memory_arena_t *arena, gl_vbuffer_t *b, float x, float y, char *text)
 {
     while (*text)
     {
@@ -53,8 +53,8 @@ void stbtt_print(memory_arena *arena, opengl_vertexbuffer *b, float x, float y, 
             stbtt_aligned_quad q;
             stbtt_GetBakedQuad(cdata, 512,512, *text-32, &x,&y,&q,1);//1=opengl & d3d10+,0=d3d9
             
-            opengl_mesh_indexed quad = opengl_make_quad_indexed(arena, V2(q.x0,q.y0), V2(q.x1,q.y1), 
-                                                                V2(q.s0,q.t0), V2(q.s1,q.t1), b->vertexCount);
+            gl_mesh_t quad = opengl_make_quad(arena, V2(q.x0,q.y0), V2(q.x1,q.y1), 
+                                              V2(q.s0,q.t0), V2(q.s1,q.t1), b->vertexCount);
             memcpy((u8 *)b->vertices + b->vertexCount * b->vertexSize, quad.vertices, b->vertexSize * quad.vertexCount);
             memcpy(b->indices + b->indexCount, quad.indices, sizeof(u32) * quad.indexCount);
             

@@ -3,40 +3,40 @@
 #ifndef MEMORY_H
 #define MEMORY_H
 
-typedef struct memory_pool
+typedef struct memory_pool_t
 {
     size_t platSize;
     u8 *platBase;
     size_t permSize;
     u8 *permBase;
-    size_t tranSize;
-    u8 *tranBase;
-} memory_pool;
+    size_t tempSize;
+    u8 *tempBase;
+} memory_pool_t;
 
-typedef struct memory_arena
+typedef struct memory_arena_t
 {
     u8 *base;
     size_t used;
     size_t size;
     u32 tempCount;
-} memory_arena;
+} memory_arena_t;
 
-typedef struct temp_memory
+typedef struct temp_memory_t
 {
-    memory_arena *arena;
+    memory_arena_t *arena;
     size_t usedOld;
-} temp_memory;
+} temp_memory_t;
 
-typedef struct string_array
+typedef struct string_array_t
 {
     u32 count;
     char **data;
-} string_array;
+} string_array_t;
 
-internal temp_memory
-begin_temp_memory(memory_arena *arena)
+internal temp_memory_t
+begin_temp_memory(memory_arena_t *arena)
 {
-    temp_memory result = 
+    temp_memory_t result = 
     {
         .arena = arena,
         .usedOld = arena->used,
@@ -48,34 +48,34 @@ begin_temp_memory(memory_arena *arena)
 }
 
 internal void
-end_temp_memory(temp_memory mem)
+end_temp_memory(temp_memory_t mem)
 {
-    memory_arena *arena = mem.arena;
+    memory_arena_t *arena = mem.arena;
     assert(arena->used >= mem.usedOld);
     arena->used = mem.usedOld;
     arena->tempCount -= 1;
 }
 
 internal void
-check_arena(memory_arena *arena)
+check_arena(memory_arena_t *arena)
 {
     assert(arena->tempCount == 0);
 }
 
 inline void
-memory_pool_init(memory_pool *pool, u8 *platAddress, size_t platSize,
-                 u8 *address, size_t permSize, size_t tranSize)
+memory_pool_init(memory_pool_t *pool, u8 *platAddress, size_t platSize,
+                 u8 *address, size_t permSize, size_t tempSize)
 {
     pool->platBase = platAddress;
     pool->platSize = platSize;
-    pool->permSize = permSize;
-    pool->tranSize = tranSize;
     pool->permBase = address;
-    pool->tranBase = address + permSize;
+    pool->permSize = permSize;
+    pool->tempBase = address + permSize;
+    pool->tempSize = tempSize;
 }
 
 inline void
-arena_init(memory_arena *arena, size_t size, u8 *base)
+arena_init(memory_arena_t *arena, size_t size, u8 *base)
 {
     arena->size = size;
     arena->used = 0;
@@ -83,7 +83,7 @@ arena_init(memory_arena *arena, size_t size, u8 *base)
 }
 
 inline size_t
-arena_get_alignment_offset(memory_arena *arena, size_t alignment)
+arena_get_alignment_offset(memory_arena_t *arena, size_t alignment)
 {
     size_t alignmentOffset = 0;
     
@@ -102,7 +102,7 @@ arena_get_alignment_offset(memory_arena *arena, size_t alignment)
 #define push_size(arena, size, ...) push_size_(arena, size, ## __VA_ARGS__)
 
 inline size_t
-arena_get_effective_size(memory_arena *arena, size_t sizeInit, size_t alignment)
+arena_get_effective_size(memory_arena_t *arena, size_t sizeInit, size_t alignment)
 {
     size_t size = sizeInit;
     
@@ -113,7 +113,7 @@ arena_get_effective_size(memory_arena *arena, size_t sizeInit, size_t alignment)
 }
 
 inline void *
-push_size_(memory_arena *arena, size_t sizeInit, size_t alignment)
+push_size_(memory_arena_t *arena, size_t sizeInit, size_t alignment)
 {
     void *result = 0;
     
@@ -135,10 +135,10 @@ push_size_(memory_arena *arena, size_t sizeInit, size_t alignment)
     return(result);
 }
 
-internal string_array
+internal string_array_t
 make_string_array(u32 count)
 {
-    string_array result;
+    string_array_t result;
     
     result.count = count;
     result.data = (char **)malloc(count * sizeof(char *));

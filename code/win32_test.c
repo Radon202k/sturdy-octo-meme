@@ -12,26 +12,26 @@ typedef enum scene_type_t
     scene_type_cubes_test,
 } scene_type_t;
 
-global scene_type_t currentScene = scene_type_perlin_test;
+global scene_type_t currentScene;
 global b32 currentSceneInitialized;
 
-typeless_vector mainVertexBuffers;
-opengl_vertexbuffer *mainLinesVertexBuffer;
-opengl_vertexbuffer *mainTextVertexBuffer;
+typeless_vector_t mainVertexBuffers;
+gl_vbuffer_t *mainLinesVertexBuffer;
+gl_vbuffer_t *mainTextVertexBuffer;
 
-opengl_renderpass *mainRenderPasses;
+gl_renderpass_t *mainRenderPasses;
 
-opengl_shader textureShader;
-opengl_shader lineShader;
+gl_shader_t textureShader;
+gl_shader_t lineShader;
 
 #include "perlin_test.c"
 #include "cubes_test.c"
 
 inline void
-scene_set_current(memory_pool *pool, scene_type_t newScene)
+scene_set_current(memory_pool_t *pool, scene_type_t newScene)
 {
     memset(pool->permBase, 0, pool->permSize);
-    memset(pool->tranBase, 0, pool->tranSize);
+    memset(pool->tempBase, 0, pool->tempSize);
     
     currentSceneInitialized = 0;
     currentScene = newScene;
@@ -39,14 +39,14 @@ scene_set_current(memory_pool *pool, scene_type_t newScene)
 
 WIN32_ENTRY()
 {
-    memory_pool pool = win32_init();
+    memory_pool_t pool = win32_init();
     
-    memory_arena platArena;
+    memory_arena_t platArena;
     arena_init(&platArena, pool.platSize, pool.platBase);
     
     renderer_init(&platArena);
     
-    currentScene = scene_type_perlin_test;
+    currentScene = scene_type_cubes_test;
     
     // Texture shader
     {
@@ -69,14 +69,14 @@ WIN32_ENTRY()
     // Main vertex buffers
     {
         // Make vertex buffer array
-        mainVertexBuffers = make_typeless_vector(2, sizeof(opengl_vertexbuffer));
+        mainVertexBuffers = make_typeless_vector(2, sizeof(gl_vbuffer_t));
         
-        mainLinesVertexBuffer = &((opengl_vertexbuffer *)mainVertexBuffers.data)[0];
-        mainTextVertexBuffer = &((opengl_vertexbuffer *)mainVertexBuffers.data)[1];
+        mainLinesVertexBuffer = &((gl_vbuffer_t *)mainVertexBuffers.data)[0];
+        mainTextVertexBuffer = &((gl_vbuffer_t *)mainVertexBuffers.data)[1];
         
-        *mainLinesVertexBuffer = opengl_make_vertexbuffer(&platArena, sizeof(f32)*6, 1000, 1000);
-        opengl_vertexbuffer_set_inputlayout(mainLinesVertexBuffer, 0, GL_FLOAT, 3, 0);
-        opengl_vertexbuffer_set_inputlayout(mainLinesVertexBuffer, 1, GL_FLOAT, 3, sizeof(f32)*3);
+        *mainLinesVertexBuffer = opengl_make_vbuffer(&platArena, sizeof(f32)*6, 1000, 1000);
+        opengl_vbuffer_set_inputlayout(mainLinesVertexBuffer, 0, GL_FLOAT, 3, 0);
+        opengl_vbuffer_set_inputlayout(mainLinesVertexBuffer, 1, GL_FLOAT, 3, sizeof(f32)*3);
         
         v3 color = V3(1, 0, 0);
         f32 lineVertices[] =
@@ -95,22 +95,22 @@ WIN32_ENTRY()
         mainLinesVertexBuffer->vertexCount += 2;
         mainLinesVertexBuffer->indexCount += 2;
         
-        opengl_upload_vertexbuffer_data(mainLinesVertexBuffer);
+        opengl_upload_vbuffer_data(mainLinesVertexBuffer);
         
-        *mainTextVertexBuffer = opengl_make_vertexbuffer(&platArena, sizeof(f32)*8, 1000, 1000);
-        opengl_vertexbuffer_set_default_inputlayout(mainTextVertexBuffer);
+        *mainTextVertexBuffer = opengl_make_vbuffer(&platArena, sizeof(f32)*8, 1000, 1000);
+        opengl_vbuffer_set_default_inputlayout(mainTextVertexBuffer);
     }
     
     // Main render passes
     {
         mat4 noView = mat4_identity(1.0f);
         mat4 orthographicProj = mat4_orthographic((f32)os.gl.windowWidth, (f32)os.gl.windowHeight).forward;
-        mainRenderPasses = push_array(&platArena, 2, opengl_renderpass, 4);
+        mainRenderPasses = push_array(&platArena, 2, gl_renderpass_t, 4);
         
-        mainRenderPasses[0] = opengl_make_renderpass(mainLinesVertexBuffer, renderpass_primitive_lines, 0, 0, 10,
+        mainRenderPasses[0] = opengl_make_renderpass(mainLinesVertexBuffer, gl_primitive_lines, 0, 0, 10,
                                                      noView, orthographicProj, &lineShader);
         
-        mainRenderPasses[1] = opengl_make_renderpass(mainTextVertexBuffer, renderpass_primitive_triangles,
+        mainRenderPasses[1] = opengl_make_renderpass(mainTextVertexBuffer, gl_primitive_triangles,
                                                      0, globalFontTexture, 0, noView, orthographicProj, &textureShader);
         
         
@@ -176,7 +176,7 @@ WIN32_ENTRY()
         // Main render passes
         {
             // Begin temporary memory
-            temp_memory mem = begin_temp_memory(&platArena);
+            temp_memory_t mem = begin_temp_memory(&platArena);
             
             // Debug text
             {
@@ -188,7 +188,7 @@ WIN32_ENTRY()
                 
                 stbtt_print(&platArena, mainTextVertexBuffer, 0, 30, fpsBuffer);
                 
-                opengl_upload_vertexbuffer_data(mainTextVertexBuffer);
+                opengl_upload_vbuffer_data(mainTextVertexBuffer);
             }
             
             // End temporary memory

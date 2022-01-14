@@ -15,7 +15,7 @@
 time_t t;
 
 internal void
-renderer_init(memory_arena *platArena)
+renderer_init(memory_arena_t *platArena)
 {
     opengl_init(&os.gl, 0, 0, 500, 500, "Minecraft clone", platArena);
     

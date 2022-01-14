@@ -3,21 +3,10 @@
 #ifndef WIN32_OPENGL_MESH_H
 #define WIN32_OPENGL_MESH_H
 
-internal opengl_mesh
-opengl_make_mesh(u32 vertexCount, GLsizei vertexSize, memory_arena *arena)
+internal gl_mesh_t
+opengl_make_mesh(u32 vertexCount, GLsizei vertexSize, u32 indexCount, memory_arena_t *arena)
 {
-    opengl_mesh result = 
-    {
-        .vertices = push_size(arena, vertexCount*vertexSize, 4),
-        .vertexCount = vertexCount,
-    };
-    return result;
-}
-
-internal opengl_mesh_indexed
-opengl_make_mesh_indexed(u32 vertexCount, GLsizei vertexSize, u32 indexCount, memory_arena *arena)
-{
-    opengl_mesh_indexed result = 
+    gl_mesh_t result = 
     {
         .vertices = push_size(arena, vertexCount*vertexSize, 4),
         .vertexCount = vertexCount,
@@ -27,86 +16,10 @@ opengl_make_mesh_indexed(u32 vertexCount, GLsizei vertexSize, u32 indexCount, me
     return result;
 }
 
-internal opengl_mesh
-opengl_make_cube_mesh(v3 offset, v3 scale, memory_arena *arena)
+internal gl_mesh_t
+opengl_make_cube_mesh(v3 offset, u32 scale, memory_arena_t *arena, u32 indexBase, u32 textureType)
 {
-    opengl_mesh cube = opengl_make_mesh(3*2*6, sizeof(f32)*8, arena);
-    
-    f32 minX = offset.x - 0.5f * scale.x;
-    f32 maxX = offset.x + 0.5f * scale.x;
-    
-    f32 minY = offset.y - 0.5f * scale.y;
-    f32 maxY = offset.y + 0.5f * scale.y;
-    
-    f32 minZ = offset.z - 0.5f * scale.z;
-    f32 maxZ = offset.z + 0.5f * scale.z;
-    
-    f32 data[] =
-    {
-        // Lower face
-        minX,minY,minZ,  0.0f,0.0f,  1,1,1,
-        maxX,minY,minZ,  2.5f,0.0f,  1,1,1,
-        maxX,maxY,minZ,  2.5f,2.5f,  1,1,1,
-        
-        minX,minY,minZ,  0.0f,0.0f,  1,1,1,
-        maxX,maxY,minZ,  2.5f,2.5f,  1,1,1,
-        minX,maxY,minZ,  0.0f,2.5f,  1,1,1,
-        
-        // Upper face
-        minX,minY,maxZ,  0.0f,0.0f,  1,1,1,
-        maxX,minY,maxZ,  2.5f,0.0f,  1,1,1,
-        maxX,maxY,maxZ,  2.5f,2.5f,  1,1,1,
-        
-        minX,minY,maxZ,  0.0f,0.0f,  1,1,1,
-        maxX,maxY,maxZ,  2.5f,2.5f,  1,1,1,
-        minX,maxY,maxZ,  0.0f,2.5f,  1,1,1,
-        
-        // Front fa1,1,1e
-        minX,maxY,minZ,  0.0f,0.0f,  1,1,1,
-        maxX,maxY,minZ,  2.5f,0.0f,  1,1,1,
-        maxX,maxY,maxZ,  2.5f,2.5f,  1,1,1,
-        
-        minX,maxY,minZ,  0.0f,0.0f,  1,1,1,
-        maxX,maxY,maxZ,  2.5f,2.5f,  1,1,1,
-        minX,maxY,maxZ,  0.0f,2.5f,  1,1,1,
-        
-        // Ba1,1,1k fa1,1,1e
-        minX,minY,minZ,  0.0f,0.0f,  1,1,1,
-        maxX,minY,minZ,  2.5f,0.0f,  1,1,1,
-        maxX,minY,maxZ,  2.5f,2.5f,  1,1,1,
-        
-        minX,minY,minZ,  0.0f,0.0f,  1,1,1,
-        maxX,minY,maxZ,  2.5f,2.5f,  1,1,1,
-        minX,minY,maxZ,  0.0f,2.5f,  1,1,1,
-        
-        // Left fa1,1,1e
-        minX,minY,minZ,  0.0f,0.0f,  1,1,1,
-        minX,maxY,minZ,  2.5f,0.0f,  1,1,1,
-        minX,maxY,maxZ,  2.5f,2.5f,  1,1,1,
-        
-        minX,minY,minZ,  0.0f,0.0f,  1,1,1,
-        minX,maxY,maxZ,  2.5f,2.5f,  1,1,1,
-        minX,minY,maxZ,  0.0f,2.5f,  1,1,1,
-        
-        // Right fa1,1,1e
-        maxX,minY,minZ,  0.0f,0.0f,  1,1,1,
-        maxX,maxY,minZ,  2.5f,0.0f,  1,1,1,
-        maxX,maxY,maxZ,  2.5f,2.5f,  1,1,1,
-        
-        maxX,minY,minZ,  0.0f,0.0f,  1,1,1,
-        maxX,maxY,maxZ,  2.5f,2.5f,  1,1,1,
-        maxX,minY,maxZ,  0.0f,2.5f,  1,1,1,
-    };
-    
-    memcpy(cube.vertices, data, sizeof(data));
-    
-    return cube;
-}
-
-internal opengl_mesh_indexed
-opengl_make_cube_mesh_indexed(v3 offset, u32 scale, memory_arena *arena, u32 indexBase, u32 textureType)
-{
-    opengl_mesh_indexed cube = opengl_make_mesh_indexed(4*6, sizeof(f32)*8, 6*6, arena);
+    gl_mesh_t cube = opengl_make_mesh(4*6, sizeof(f32)*8, 6*6, arena);
     
     f32 minX = offset.x - 0.5f * scale;
     f32 maxX = offset.x + 0.5f * scale;
@@ -207,10 +120,10 @@ opengl_make_cube_mesh_indexed(v3 offset, u32 scale, memory_arena *arena, u32 ind
     return cube;
 }
 
-internal opengl_mesh_indexed
-opengl_make_quad_indexed(memory_arena *arena, v2 minPos, v2 maxPos, v2 minUV, v2 maxUV, u32 indexBase)
+internal gl_mesh_t
+opengl_make_quad(memory_arena_t *arena, v2 minPos, v2 maxPos, v2 minUV, v2 maxUV, u32 indexBase)
 {
-    opengl_mesh_indexed quad = opengl_make_mesh_indexed(4, sizeof(f32)*8, 6, arena);
+    gl_mesh_t quad = opengl_make_mesh(4, sizeof(f32)*8, 6, arena);
     
     f32 minX = minPos.x;
     f32 maxX = maxPos.x;

@@ -1,7 +1,7 @@
 typedef struct perlin_scene_t
 {
-    memory_arena arenaPerm;
-    memory_arena arenaTran;
+    memory_arena_t arenaPerm;
+    memory_arena_t arenaTran;
     
     u32 noiseOctave;
     f32 noiseBias;
@@ -24,43 +24,43 @@ typedef struct perlin_scene_t
     v2 mousePos;
     v2 lastMousePos;
     
-    typeless_vector vertexBuffers;
-    opengl_vertexbuffer *canvas2dVertexBuffer;
+    typeless_vector_t vertexBuffers;
+    gl_vbuffer_t *canvas2dVertexBuffer;
     
-    opengl_renderpass *renderPasses;
+    gl_renderpass_t *renderPasses;
     
 } perlin_scene_t;
 
 internal void
-perlin_scene_make_vertexbuffers(memory_pool *scenePool)
+perlin_scene_make_vertexbuffers(memory_pool_t *scenePool)
 {
     perlin_scene_t *scene = (perlin_scene_t *)scenePool->permBase;
-    memory_arena *arena = &scene->arenaPerm;
+    memory_arena_t *arena = &scene->arenaPerm;
     
     // Make vertex buffer array
-    scene->vertexBuffers = make_typeless_vector(1, sizeof(opengl_vertexbuffer));
+    scene->vertexBuffers = make_typeless_vector(1, sizeof(gl_vbuffer_t));
     
-    scene->canvas2dVertexBuffer = &((opengl_vertexbuffer *)scene->vertexBuffers.data)[0];
+    scene->canvas2dVertexBuffer = &((gl_vbuffer_t *)scene->vertexBuffers.data)[0];
     
-    *scene->canvas2dVertexBuffer = opengl_make_vertexbuffer(arena, sizeof(f32)*8, 1000, 1000);
-    opengl_vertexbuffer_set_default_inputlayout(scene->canvas2dVertexBuffer);
+    *scene->canvas2dVertexBuffer = opengl_make_vbuffer(arena, sizeof(f32)*8, 1000, 1000);
+    opengl_vbuffer_set_default_inputlayout(scene->canvas2dVertexBuffer);
 }
 
 internal void
-perlin_update_renderpasses(opengl_renderpass renderPasses[], camera_t *camera)
+perlin_update_renderpasses(gl_renderpass_t renderPasses[], camera_t *camera)
 {
     renderPasses[0].proj = mat4_orthographic((f32)os.gl.windowWidth, (f32)os.gl.windowHeight).forward;
 }
 
 internal void
-perlin_scene_init(memory_pool *scenePool)
+perlin_scene_init(memory_pool_t *scenePool)
 {
     perlin_scene_t *scene = (perlin_scene_t *)scenePool->permBase;
     
     arena_init(&scene->arenaPerm, scenePool->permSize - sizeof(perlin_scene_t),
                (u8 *)scenePool->permBase + sizeof(perlin_scene_t));
     
-    memory_arena *arena = &scene->arenaPerm;
+    memory_arena_t *arena = &scene->arenaPerm;
     
     // Noise 1d
     scene->noiseOctave = 1;
@@ -117,17 +117,17 @@ perlin_scene_init(memory_pool *scenePool)
     
     // Render passes
     
-    scene->renderPasses = push_array(arena, 1, opengl_renderpass, 4);
-    scene->renderPasses[0] = opengl_make_renderpass(scene->canvas2dVertexBuffer, renderpass_primitive_triangles,
+    scene->renderPasses = push_array(arena, 1, gl_renderpass_t, 4);
+    scene->renderPasses[0] = opengl_make_renderpass(scene->canvas2dVertexBuffer, gl_primitive_triangles,
                                                     0, scene->noiseTexture, 0, cameraView, perspectiveProj, &textureShader);
 }
 
 internal void
-perlin_scene_update(memory_pool *scenePool, f32 elapsedTime)
+perlin_scene_update(memory_pool_t *scenePool, f32 elapsedTime)
 {
     perlin_scene_t *scene = (perlin_scene_t *)scenePool->permBase;
     
-    memory_arena *arena = &scene->arenaPerm;
+    memory_arena_t *arena = &scene->arenaPerm;
     
     
     scene->mousePos.x = os.mouse.pos.x;
@@ -278,12 +278,12 @@ perlin_scene_update(memory_pool *scenePool, f32 elapsedTime)
     
     
     // Begin temporary memory
-    temp_memory mem = begin_temp_memory(arena);
+    temp_memory_t mem = begin_temp_memory(arena);
     
     scene->canvas2dVertexBuffer->vertexCount = 0;
     scene->canvas2dVertexBuffer->indexCount = 0;
     
-    opengl_mesh_indexed quad = opengl_make_quad_indexed(arena, V2(30,30), V2(470,470), V2(0,0), V2(1,1), scene->canvas2dVertexBuffer->vertexCount);
+    gl_mesh_t quad = opengl_make_quad(arena, V2(30,30), V2(470,470), V2(0,0), V2(1,1), scene->canvas2dVertexBuffer->vertexCount);
     
     memcpy(scene->canvas2dVertexBuffer->vertices + scene->canvas2dVertexBuffer->vertexCount, quad.vertices, scene->canvas2dVertexBuffer->vertexSize * quad.vertexCount);
     memcpy(scene->canvas2dVertexBuffer->indices + scene->canvas2dVertexBuffer->indexCount, quad.indices, sizeof(u32) * quad.indexCount);
@@ -292,7 +292,7 @@ perlin_scene_update(memory_pool *scenePool, f32 elapsedTime)
     scene->canvas2dVertexBuffer->vertexCount += quad.vertexCount;
     scene->canvas2dVertexBuffer->indexCount += quad.indexCount;
     
-    opengl_upload_vertexbuffer_data(scene->canvas2dVertexBuffer);
+    opengl_upload_vbuffer_data(scene->canvas2dVertexBuffer);
     
     // End temporary memory
     end_temp_memory(mem);

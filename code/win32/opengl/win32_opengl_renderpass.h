@@ -3,12 +3,12 @@
 #ifndef WIN32_OPENGL_RENDERPASS_H
 #define WIN32_OPENGL_RENDERPASS_H
 
-internal opengl_renderpass 
-opengl_make_renderpass(opengl_vertexbuffer *b, renderpass_primitive primitiveType, 
+internal gl_renderpass_t 
+opengl_make_renderpass(gl_vbuffer_t *b, gl_primitive_t primitiveType, 
                        GLint texUnit, GLuint texHandle, u32 lineWidth,
-                       mat4 view, mat4 proj, opengl_shader *shader)
+                       mat4 view, mat4 proj, gl_shader_t *shader)
 {
-    opengl_renderpass renderPass = 
+    gl_renderpass_t renderPass = 
     {
         .shader = shader,
         .buffer = b,
@@ -24,7 +24,7 @@ opengl_make_renderpass(opengl_vertexbuffer *b, renderpass_primitive primitiveTyp
 }
 
 internal void
-opengl_execute_renderpass(opengl_context *gl, opengl_renderpass renderPass)
+opengl_execute_renderpass(gl_context_t *gl, gl_renderpass_t renderPass)
 {
     f32 aspect = (f32)gl->windowWidth / (f32)gl->windowHeight;
     
@@ -44,7 +44,7 @@ opengl_execute_renderpass(opengl_context *gl, opengl_renderpass renderPass)
     
     switch(renderPass.primitiveType)
     {
-        case renderpass_primitive_triangles:
+        case gl_primitive_triangles:
         {
             // Bind texture to texture unit
             // texture unit that sampler2D will use in GLSL code
@@ -53,7 +53,7 @@ opengl_execute_renderpass(opengl_context *gl, opengl_renderpass renderPass)
             glDrawElements(GL_TRIANGLES, renderPass.buffer->indexCount, GL_UNSIGNED_INT, 0);
         } break;
         
-        case renderpass_primitive_lines:
+        case gl_primitive_lines:
         {
             glLineWidth((f32)renderPass.lineWidth);
             
@@ -65,7 +65,7 @@ opengl_execute_renderpass(opengl_context *gl, opengl_renderpass renderPass)
 }
 
 internal void
-opengl_execute_renderpasses(opengl_context *gl, opengl_renderpass renderPasses[], u32 count)
+opengl_execute_renderpasses(gl_context_t *gl, gl_renderpass_t renderPasses[], u32 count)
 {
     for (u32 i = 0;
          i < count;

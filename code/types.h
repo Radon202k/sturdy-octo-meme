@@ -29,17 +29,24 @@ typedef double f64;
 typedef float r32;
 typedef double r64;
 
-typedef struct indexed_b32
+typedef struct indexed_b32_t
 {
     b32 found;
     u32 index;
-} indexed_b32;
+} indexed_b32_t;
 
-typedef struct typeless_vector
+typedef struct typeless_vector_t
 {
     u32 count;
     void *data;
-} typeless_vector;
+} typeless_vector_t;
+
+typedef struct image_t
+{
+    u32 width;
+    u32 height;
+    u32 *pixels;
+} image_t;
 
 #define kilobytes(value) ((value) * 1024)
 #define megabytes(value) (kilobytes(value) * 1024)
