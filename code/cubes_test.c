@@ -1,3 +1,11 @@
+/*
+ 
+TODO: 
+
+- Draw opensimplex noise 2d in 256x256 greyscale image to confirm it works.
+
+*/
+
 typedef struct cubes_scene_t
 {
     memory_arena_t arenaPerm;
@@ -21,14 +29,18 @@ typedef struct cubes_scene_t
     
     gl_renderpass_t *renderPasses;
     
+    opensimplex_noise_t noise;
 } cubes_scene_t;
 
 internal void
-generate_cube(cubes_scene_t *scene, u32 x, u32 y, u32 z, u32 cubeDim,
+generate_cube(cubes_scene_t *scene, s32 x, s32 y, s32 z, u32 cubeDim,
               s32 chunkX, s32 chunkY, s32 chunkZ, u32 chunkDim,
-              u32 blockType, f32 *noise2d)
+              u32 blockType)
 {
-    s32 height = (s32)(-20 + 4 * noise2d[y * chunkDim + x]);
+    f64 noiseX = (f64)(chunkX * (s32)chunkDim + x);
+    f64 noiseY = (f64)(chunkZ * (s32)chunkDim + z); // y is z in our 3d world
+    
+    f64 height = opensimplex_noise2d(&scene->noise, noiseX, noiseY);
     
     if (1)
     {
@@ -68,11 +80,16 @@ generate_chunk(cubes_scene_t *scene, u32 chunkDim, s32 chunkX, s32 chunkY, s32 c
     
     u32 chunkDimSq = chunkDim*chunkDim;
     
+#if 0
     f32 *noise2dSeed = push_array(mem.arena, chunkDimSq, f32, 4);
     f32 *noise2d = push_array(mem.arena, chunkDimSq, f32, 4);
     
     perlinlike_noise_seed(chunkDimSq, noise2dSeed);
     perlinlike_noise2d(chunkDim, chunkDim, scene->noiseOctave, scene->noiseBias, noise2dSeed, noise2d);
+#else
+    
+    
+#endif
     
     for (s32 k = 1;
          k <= 1;
@@ -94,7 +111,8 @@ generate_chunk(cubes_scene_t *scene, u32 chunkDim, s32 chunkX, s32 chunkY, s32 c
                 
                 generate_cube(scene, x, y, z, cubeDim,
                               chunkX, chunkY, chunkZ, chunkDim,
-                              blockType, noise2d);
+                              blockType);
+                
             }
         }
     }
@@ -205,8 +223,17 @@ cubes_scene_init(memory_pool_t *scenePool)
     
     cubes_scene_load_texture_atlas(scene);
     
+#if 0
     scene->noiseOctave = 3;
     scene->noiseBias = 0.8f;
+#else
+    
+    
+    // Open simplex noise test
+    scene->noise = make_opensimplex_noise();
+    
+    
+#endif
     
     // "Player"
     scene->cameraTarget = transform_get_default();
