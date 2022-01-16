@@ -117,14 +117,14 @@ make_opensimplex_noise()
     typeless_vector_t gradients2d = make_typeless_vector(16, sizeof(char));
     gradients2d.data = data;
     
-    typeless_vector_t perm = make_typeless_vector(256, sizeof(int));
+    typeless_vector_t perm = make_typeless_vector(256, sizeof(s16));
     
     opensimplex_noise_t result = 
     {
         .stretch2d = -0.211324865405187, // (1/sqrt(2+1)-1)/2
         .squish2d = 0.366025403784439, // (sqrt(2+1)-1)/2
-        .norm2d = 47,
-        .defaultSeed = 0,
+        .norm2d = 47.0,
+        .defaultSeed = 0LL,
         .perm = perm,
         .gradients2d = gradients2d,
     };
@@ -137,7 +137,7 @@ internal f64
 opensimplex_noise2d_extrapolate(opensimplex_noise_t *context, 
                                 int xsb, int ysb, f64 dx, f64 dy)
 {
-    int *perm = ((int *)context->perm.data);
+    s16 *perm = ((s16 *)context->perm.data);
     char *grads2d = ((char *)context->gradients2d.data);
     int index = perm[(perm[xsb & 0xFF] + ysb) & 0xFF] & 0x0E;
     return grads2d[index] * dx + grads2d[index + 1] * dy;

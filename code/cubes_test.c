@@ -13,7 +13,8 @@ typedef struct cubes_scene_t
     
     GLuint atlasTexture;
     
-    u32 noiseOctave;
+    struct osn_context *noiseContext;
+    u32 noiseHeight;
     f32 noiseBias;
     
     transform_t cameraTarget;
@@ -29,7 +30,7 @@ typedef struct cubes_scene_t
     
     gl_renderpass_t *renderPasses;
     
-    opensimplex_noise_t noise;
+    
 } cubes_scene_t;
 
 internal void
@@ -38,9 +39,15 @@ generate_cube(cubes_scene_t *scene, s32 x, s32 y, s32 z, u32 cubeDim,
               u32 blockType)
 {
     f64 noiseX = (f64)(chunkX * (s32)chunkDim + x);
-    f64 noiseY = (f64)(chunkZ * (s32)chunkDim + z); // y is z in our 3d world
+    f64 noiseY = (f64)(chunkY * (s32)chunkDim + y);
     
-    f64 height = opensimplex_noise2d(&scene->noise, noiseX, noiseY);
+    f64 noiseValue = open_simplex_noise2(scene->noiseContext, (double) noiseX / scene->noiseBias,
+                                         (double) noiseY / scene->noiseBias);
+    
+    
+    u32 height = (u32)(scene->noiseHeight * ((0.5 * noiseValue) + 0.5));
+    
+    
     
     if (1)
     {
@@ -230,7 +237,7 @@ cubes_scene_init(memory_pool_t *scenePool)
     
     
     // Open simplex noise test
-    scene->noise = make_opensimplex_noise();
+    open_simplex_noise(0, &scene->noiseContext);
     
     
 #endif
@@ -297,17 +304,17 @@ cubes_scene_update(memory_pool_t *scenePool, f32 elapsedTime)
         {
             if (os.keyboard.buttons[KEY_PLUS].pressed)
             {
-                if (scene->noiseOctave < 9)
+                if (scene->noiseHeight < 32)
                 {
-                    scene->noiseOctave += 1;
+                    scene->noiseHeight += 1;
                     calculateNoise = 1;
                 }
             }
             else if (os.keyboard.buttons[KEY_MINUS].pressed)
             {
-                if (scene->noiseOctave > 1)
+                if (scene->noiseHeight > 1)
                 {
-                    scene->noiseOctave -= 1;
+                    scene->noiseHeight -= 1;
                     calculateNoise = 1;
                 }
             }
@@ -340,19 +347,19 @@ cubes_scene_update(memory_pool_t *scenePool, f32 elapsedTime)
         {
             if (os.keyboard.buttons[KEY_PLUS].pressed)
             {
-                scene->noiseBias += 0.2f;
+                scene->noiseBias += 10.0f;
                 calculateNoise = 1;
             }
             else if (os.keyboard.buttons[KEY_MINUS].pressed)
             {
-                scene->noiseBias -= 0.2f;
+                scene->noiseBias -= 10.0f;
                 calculateNoise = 1;
             }
         }
     }
     
-    if (os.keyboard.buttons[KEY_CONTROL].down &&
-        os.keyboard.buttons[KEY_ENTER].pressed)
+    if ((os.keyboard.buttons[KEY_CONTROL].down &&
+         os.keyboard.buttons[KEY_ENTER].pressed) || calculateNoise)
     {
         // reset vertex buffer
         scene->cubesVertexBuffer->indexCount = 0;
@@ -418,9 +425,9 @@ cubes_scene_update(memory_pool_t *scenePool, f32 elapsedTime)
         
         stbtt_print(arena, scene->textVertexBuffer, 0, (debugTextCount++)*30.0f, "Cubes test scene");
         
-        char labelOctaves[256];
-        label_make_f32(labelOctaves, sizeof(labelOctaves), "Octaves: ", (f32)scene->noiseOctave);
-        stbtt_print(arena, scene->textVertexBuffer, 0, (debugTextCount++)*30.0f, labelOctaves);
+        char labelHeight[256];
+        label_make_f32(labelHeight, sizeof(labelHeight), "Height: ", (f32)scene->noiseHeight);
+        stbtt_print(arena, scene->textVertexBuffer, 0, (debugTextCount++)*30.0f, labelHeight);
         
         char labelBias[256];
         label_make_f32(labelBias, sizeof(labelBias), "Bias: ", scene->noiseBias);

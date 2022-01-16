@@ -1,20 +1,16 @@
+#include "open-simplex-noise.h"
+#include "open-simplex-noise.c"
+
 typedef struct perlin_scene_t
-{
+{  
     memory_arena_t arenaPerm;
     memory_arena_t arenaTran;
     
-    u32 noiseOctave;
-    f32 noiseBias;
-    
     u32 *noisePixels;
     
-    f32 *noise1dSeed;
-    f32 *noise1d;
+    opensimplex_noise_t noise;
     
-    f32 *noise2dSeed;
-    f32 *noise2d;
-    
-    u32 noiseMode;
+    struct osn_context *ctx;
     
     GLuint noiseTexture;
     
@@ -62,32 +58,31 @@ perlin_scene_init(memory_pool_t *scenePool)
     
     memory_arena_t *arena = &scene->arenaPerm;
     
-    // Noise 1d
-    scene->noiseOctave = 1;
-    scene->noiseBias = 2.0f;
+#if 0
+    scene->noise = make_opensimplex_noise();
     
-    scene->noisePixels = 0;
     
-    scene->noise1dSeed = push_array(arena, 256, f32, 4);
-    scene->noise1d = push_array(arena, 256, f32, 4);
     
-    perlinlike_noise_seed(256, scene->noise1dSeed);
-    perlinlike_noise1d(256, scene->noiseOctave, scene->noiseBias, scene->noise1dSeed, scene->noise1d);
+#endif 
     
-    scene->noise2dSeed = push_array(arena, 256*256, f32, 4);
-    scene->noise2d = push_array(arena, 256*256, f32, 4);
+    open_simplex_noise(0, &scene->ctx);
     
-    perlinlike_noise_seed(256*256, scene->noise2dSeed);
-    perlinlike_noise2d(256, 256, scene->noiseOctave, scene->noiseBias, scene->noise2dSeed, scene->noise2d);
+    scene->noisePixels = push_size(arena, 256*256, 4);
     
-    scene->noiseMode = 1;
-    scene->noisePixels = push_array(arena, 256*256, u32, 4);
-    for (u32 x = 0;
-         x < 256;
-         ++x)
+    for (u32 y = 0;
+         y < 256;
+         ++y)
     {
-        s32 y = (s32)(-(scene->noise1d[x] * 256.0f/2) + 256.0f/2);
-        scene->noisePixels[y * 256 + x] = 0xFFFFFF00;
+        for (u32 x = 0;
+             x < 256;
+             ++x)
+        {
+            f64 noiseValue = open_simplex_noise2(scene->ctx, (double) x/32, (double) y/32);
+            
+            
+            u32 color = (u32)(255.0 * ((0.5 * noiseValue) + 0.5));
+            scene->noisePixels[y * 256 + x] = (255 << 24) | (color << 16) | (color << 8) | (color << 0);
+        }
     }
     
     opengl_make_texture(&scene->noiseTexture, 256, 256, scene->noisePixels, GL_RGBA, GL_NEAREST);
@@ -129,153 +124,10 @@ perlin_scene_update(memory_pool_t *scenePool, f32 elapsedTime)
     
     memory_arena_t *arena = &scene->arenaPerm;
     
-    
     scene->mousePos.x = os.mouse.pos.x;
     scene->mousePos.y = os.mouse.pos.y;
     v2 deltaMousePos = v2_sub(scene->mousePos, scene->lastMousePos);
     scene->lastMousePos = scene->mousePos;
-    
-    f32 speed = 10;
-    
-    b32 calculateNoise = 0; 
-    
-    if (os.keyboard.buttons[KEY_1].pressed)
-    {
-        scene->noiseMode = 1;
-        calculateNoise = 1;
-    }
-    
-    if (os.keyboard.buttons[KEY_2].pressed)
-    {
-        scene->noiseMode = 2;
-        calculateNoise = 1;
-    }
-    
-    if (os.keyboard.buttons[KEY_PLUS].pressed)
-    {
-        scene->noiseBias += 0.2f;
-        calculateNoise = 1;
-    }
-    
-    if (os.keyboard.buttons[KEY_MINUS].pressed)
-    {
-        scene->noiseBias -= 0.2f;
-        calculateNoise = 1;
-    }
-    
-    if (os.keyboard.buttons[KEY_SHIFT].down)
-    {
-        if (os.keyboard.buttons[KEY_PLUS].pressed)
-        {
-            if (scene->noiseOctave < 9)
-            {
-                scene->noiseOctave += 1;
-            }
-        }
-        else if (os.keyboard.buttons[KEY_MINUS].pressed)
-        {
-            if (scene->noiseOctave > 1)
-            {
-                scene->noiseOctave -= 1;
-            }
-        }
-        
-        calculateNoise = 1;
-    }
-    
-    if (os.keyboard.buttons[KEY_CONTROL].down && os.keyboard.buttons[KEY_A].pressed)
-    {
-        if (scene->noiseMode == 1)
-        {
-            perlinlike_noise_seed(256, scene->noise1dSeed);
-        }
-        else if (scene->noiseMode == 2)
-        {
-            perlinlike_noise_seed(256*256, scene->noise2dSeed);
-        }
-        
-        calculateNoise = 1;
-    }
-    
-    if (calculateNoise)
-    {
-        memset(scene->noisePixels, 0, 256*256*4);
-        
-        if (scene->noiseMode == 1)
-        {
-            perlinlike_noise1d(256, scene->noiseOctave, scene->noiseBias, scene->noise1dSeed, scene->noise1d);
-            for (u32 x = 0;
-                 x < 256;
-                 ++x)
-            {
-                s32 y = (s32)(-(scene->noise1d[x] * 256.0f/2) + 256.0f/2);
-                
-                scene->noisePixels[y * 256 + x] = 0xFFFFFF00;
-                for (s32 f = y; f < 256.0f/2; ++f)
-                {
-                    scene->noisePixels[f * 256 + x] = 0xFFFFFF00;
-                    
-                }
-            }
-        }
-        else if (scene->noiseMode == 2)
-        {
-            perlinlike_noise2d(256, 256, scene->noiseOctave, scene->noiseBias, scene->noise2dSeed, scene->noise2d);
-            for (u32 y = 0;
-                 y < 256;
-                 ++y)
-            {
-                for (u32 x = 0;
-                     x < 256;
-                     ++x)
-                {
-                    s32 c = (s32)(255.0f * scene->noise2d[y * 256 + x]);
-                    
-                    scene->noisePixels[y * 256 + x] = (255 << 24) | (c << 16) | (c << 8) | (c << 0);
-                }
-            }
-        }
-        
-        opengl_update_texture(&scene->noiseTexture, 256, 256, GL_RGBA, scene->noisePixels);
-    }
-    
-    if (os.keyboard.buttons[KEY_A].down)
-    {
-        scene->cameraTarget.translation.x -= elapsedTime * speed;
-    }
-    
-    if (os.keyboard.buttons[KEY_D].down)
-    {
-        scene->cameraTarget.translation.x += elapsedTime * speed;
-    }
-    
-    if (os.keyboard.buttons[KEY_W].down)
-    {
-        scene->cameraTarget.translation.z -= elapsedTime * speed;
-    }
-    
-    if (os.keyboard.buttons[KEY_S].down)
-    {
-        scene->cameraTarget.translation.z += elapsedTime * speed;
-    }
-    
-    if (os.mouse.buttons[0].down)
-    {
-        if (os.keyboard.buttons[KEY_CONTROL].down)
-        {
-            scene->camera.distanceFromTarget += elapsedTime * deltaMousePos.y;
-        }
-        else if (os.keyboard.buttons[KEY_SPACE].down)
-        {
-        }
-        else
-        {
-            scene->camera.pitch += elapsedTime * 0.1f * deltaMousePos.y;
-            scene->camera.angleAroundTarget += 0.1f * elapsedTime * deltaMousePos.x;
-        }
-    }
-    
-    
     
     // Begin temporary memory
     temp_memory_t mem = begin_temp_memory(arena);
