@@ -78,22 +78,7 @@ WIN32_ENTRY()
         opengl_vbuffer_set_inputlayout(mainLinesVertexBuffer, 0, GL_FLOAT, 3, 0);
         opengl_vbuffer_set_inputlayout(mainLinesVertexBuffer, 1, GL_FLOAT, 3, sizeof(f32)*3);
         
-        v3 color = V3(1, 0, 0);
-        f32 lineVertices[] =
-        {
-            0, 400, -1, color.r, color.g, color.b,
-            500, 500, -1, color.r, color.g, color.b,
-        };
-        u32 lineIndices[] =
-        {
-            0, 1,
-        };
-        
-        memcpy(mainLinesVertexBuffer->vertices + mainLinesVertexBuffer->vertexCount, lineVertices, sizeof(f32) * 12);
-        memcpy(mainLinesVertexBuffer->indices + mainLinesVertexBuffer->indexCount, lineIndices, sizeof(u32) * 2);
-        
-        mainLinesVertexBuffer->vertexCount += 2;
-        mainLinesVertexBuffer->indexCount += 2;
+        render_line(mainLinesVertexBuffer, V3(0,0,-1), V3(200,200,-1), V3(0,1,0));
         
         opengl_upload_vbuffer_data(mainLinesVertexBuffer);
         
@@ -106,6 +91,7 @@ WIN32_ENTRY()
         mat4 noView = mat4_identity(1.0f);
         mat4 orthographicProj = mat4_orthographic((f32)os.gl.windowWidth, (f32)os.gl.windowHeight).forward;
         mainRenderPasses = push_array(&platArena, 2, gl_renderpass_t, 4);
+        
         
         mainRenderPasses[0] = opengl_make_renderpass(mainLinesVertexBuffer, gl_primitive_lines, 0, 0, 10,
                                                      noView, orthographicProj, &lineShader);

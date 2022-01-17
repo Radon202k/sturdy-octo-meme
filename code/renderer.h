@@ -26,4 +26,25 @@ renderer_init(memory_arena_t *platArena)
     srand((unsigned) time(&t));
 }
 
+internal void
+render_line(gl_vbuffer_t *buffer, v3 a, v3 b, v3 color)
+{
+    u32 indexBase = buffer->vertexCount;
+    f32 lineVertices[] =
+    {
+        a.x, a.y, a.z, color.r, color.g, color.b,
+        b.x, b.y, b.z, color.r, color.g, color.b,
+    };
+    u32 lineIndices[] =
+    {
+        indexBase + 0, indexBase + 1,
+    };
+    
+    memcpy((u8 *)buffer->vertices + buffer->vertexCount * buffer->vertexSize, lineVertices, sizeof(f32) * 12);
+    memcpy((u8 *)buffer->indices + buffer->indexCount * sizeof(u32), lineIndices, sizeof(u32) * 2);
+    
+    buffer->vertexCount += 2;
+    buffer->indexCount += 2;
+}
+
 #endif //RENDERER_H
