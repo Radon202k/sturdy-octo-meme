@@ -26,22 +26,35 @@ renderer_init(memory_arena_t *platArena)
     srand((unsigned) time(&t));
 }
 
-internal void
-render_line(gl_vbuffer_t *buffer, v3 a, v3 b, v3 color)
+typedef struct line_vertex
 {
+    v3 pos;
+    u32 color;
+} line_vertex;
+
+internal void
+render_line(gl_vbuffer_t *buffer, v3 a, v3 b, v4 color)
+{
+    u32 cr = (u32)(color.r*255.0f);
+    u32 cg = (u32)(color.g*255.0f);
+    u32 cb = (u32)(color.b*255.0f);
+    u32 ca = (u32)(color.a*255.0f);
+    
+    u32 c = ((cr << 0) | (cg << 8) | (cb << 16) | (ca << 24));
+    
     u32 indexBase = buffer->vertexCount;
-    f32 lineVertices[] =
+    line_vertex lineVertices[] =
     {
-        a.x, a.y, a.z, color.r, color.g, color.b,
-        b.x, b.y, b.z, color.r, color.g, color.b,
+        {{a.x,a.y,a.z}, c},
+        {{b.x,b.y,b.z}, c},
     };
     u32 lineIndices[] =
     {
         indexBase + 0, indexBase + 1,
     };
     
-    memcpy((u8 *)buffer->vertices + buffer->vertexCount * buffer->vertexSize, lineVertices, sizeof(f32) * 12);
-    memcpy((u8 *)buffer->indices + buffer->indexCount * sizeof(u32), lineIndices, sizeof(u32) * 2);
+    memcpy((u8 *)buffer->vertices + buffer->vertexCount * buffer->vertexSize, lineVertices, sizeof(lineVertices));
+    memcpy((u8 *)buffer->indices + buffer->indexCount * sizeof(u32), lineIndices, sizeof(lineIndices));
     
     buffer->vertexCount += 2;
     buffer->indexCount += 2;

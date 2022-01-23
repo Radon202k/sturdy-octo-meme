@@ -31,7 +31,7 @@ generate_cube(cubes_scene_t *scene, s32 x, s32 y, s32 z, u32 cubeDim,
               u32 blockType)
 {
     f64 noiseX = (f64)(chunkX * (s32)chunkDim + x);
-    f64 noiseY = (f64)(chunkY * (s32)chunkDim + y);
+    f64 noiseY = (f64)(chunkZ * (s32)chunkDim + z);
     
     f64 noiseValue = open_simplex_noise2(scene->noiseContext, (double) noiseX / scene->noiseBias,
                                          (double) noiseY / scene->noiseBias);
@@ -43,8 +43,8 @@ generate_cube(cubes_scene_t *scene, s32 x, s32 y, s32 z, u32 cubeDim,
         v3 offset = 
         {
             (f32)(chunkX * (s32)chunkDim) + (f32)x,
-            (f32)(chunkZ * (s32)1) + (f32)z + (f32)height,
-            (f32)(chunkY * (s32)chunkDim) + (f32)y
+            (f32)(chunkY * (s32)chunkDim) + (f32)y + (f32)height,
+            (f32)(chunkZ * (s32)chunkDim) + (f32)z
         };
         
         gl_mesh_t cube = opengl_make_cube_mesh(offset, cubeDim, &scene->arenaTemp, 
@@ -87,20 +87,18 @@ generate_chunk(cubes_scene_t *scene, u32 chunkDim, s32 chunkX, s32 chunkY, s32 c
     
 #endif
     
-    for (s32 k = 1;
-         k <= 1;
+    for (u32 k = 0;
+         k <= chunkDim;
          ++k)
     {
         for (u32 j = 0;
-             j <= chunkDim;
+             j < 1;
              ++j)
         {
             for (u32 i = 0;
                  i <= chunkDim;
                  ++i)
             {
-                
-                
                 u32 cubeDim = 1;
                 
                 u32 x = (i * cubeDim);
@@ -125,20 +123,31 @@ cubes_scene_generate_cubes(cubes_scene_t *scene)
     scene->linesVertexBuffer->vertexCount = 0;
     scene->linesVertexBuffer->indexCount = 0;
     
+    // Draw global axes
+    render_line(scene->linesVertexBuffer,
+                V3(0,0,0), V3(100,0,0), V4(1,0,0,1));
+    
+    render_line(scene->linesVertexBuffer,
+                V3(0,0,0), V3(0,100,0), V4(0,0,1,1));
+    
+    render_line(scene->linesVertexBuffer,
+                V3(0,0,0), V3(0,0,100), V4(0,1,0,1));
+    
+    
     memory_arena_t *arena = &scene->arenaPerm;
-    s32 chunkRange = 2;
+    s32 chunkRange = 1;
     
     s32 totalWidth = 5;
     s32 totalHeight = 5;
     
-    u32 chunkDim = 16;
+    u32 chunkDim = 8;
     
-    for (s32 chunkZ = 1;
-         chunkZ <= 1;
+    for (s32 chunkZ = -chunkRange;
+         chunkZ <= chunkRange;
          ++chunkZ)
     {
-        for (s32 chunkY = -chunkRange;
-             chunkY <= chunkRange;
+        for (s32 chunkY = 0;
+             chunkY < 1;
              ++chunkY)
         {
             for (s32 chunkX = -chunkRange;
@@ -153,14 +162,10 @@ cubes_scene_generate_cubes(cubes_scene_t *scene)
                 f32 chunkMaxY = (f32)(chunkMinY + chunkDim);
                 f32 chunkMaxZ = (f32)(chunkMinZ + chunkDim);
                 
-                //
+                // left
                 render_line(scene->linesVertexBuffer,
-                            V3(chunkMinX,0,chunkMinZ),
-                            V3(chunkMinX,0,chunkMaxZ), V3(1,0,0));
-                
-                render_line(scene->linesVertexBuffer,
-                            V3(chunkMaxX,0,chunkMinZ),
-                            V3(chunkMaxX,0,chunkMaxZ), V3(1,0,0));
+                            V3(chunkMinX,chunkMinY,chunkMaxZ),
+                            V3(chunkMaxX,chunkMinY,chunkMaxZ), V4(1,0,0,0.5f));
                 
                 
                 
@@ -188,9 +193,9 @@ cubes_scene_make_vertexbuffers(memory_pool_t *scenePool)
     scene->textVertexBuffer = &((gl_vbuffer_t *)scene->vertexBuffers.data)[2];
     
     // Lines
-    *scene->linesVertexBuffer = opengl_make_vbuffer(arena, sizeof(f32)*6, 1000, 1000);
+    *scene->linesVertexBuffer = opengl_make_vbuffer(arena, sizeof(f32)*3+sizeof(u32), 1000, 1000);
     opengl_vbuffer_set_inputlayout(scene->linesVertexBuffer, 0, GL_FLOAT, 3, 0);
-    opengl_vbuffer_set_inputlayout(scene->linesVertexBuffer, 1, GL_FLOAT, 3, sizeof(f32)*3);
+    opengl_vbuffer_set_inputlayout(scene->linesVertexBuffer, 1, GL_UNSIGNED_BYTE, 4, sizeof(f32)*3);
     
     // First vertex buffer, static cubes
     *scene->cubesVertexBuffer = opengl_make_vbuffer(arena, sizeof(f32)*8, 5000000, 500000);
@@ -263,10 +268,11 @@ cubes_scene_init(memory_pool_t *scenePool)
     scene->cameraTarget = transform_get_default();
     scene->cameraTarget.translation.y = 2;
     scene->cameraTarget.rotation.x = 0;
+    scene->cameraTarget.rotation.y = 3.1415f;
     
     // 3rd person camera following player
     scene->camera.targetTransform = &scene->cameraTarget;
-    scene->camera.distanceFromTarget = 2,
+    scene->camera.distanceFromTarget = 20,
     
     scene->mousePos.x = os.mouse.pos.x;
     scene->mousePos.y = os.mouse.pos.y;

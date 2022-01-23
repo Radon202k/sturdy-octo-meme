@@ -74,13 +74,13 @@ WIN32_ENTRY()
         mainLinesVertexBuffer = &((gl_vbuffer_t *)mainVertexBuffers.data)[0];
         mainTextVertexBuffer = &((gl_vbuffer_t *)mainVertexBuffers.data)[1];
         
-        *mainLinesVertexBuffer = opengl_make_vbuffer(&platArena, sizeof(f32)*6, 1000, 1000);
+        *mainLinesVertexBuffer = opengl_make_vbuffer(&platArena, sizeof(f32)*3+sizeof(u32), 1000, 1000);
         opengl_vbuffer_set_inputlayout(mainLinesVertexBuffer, 0, GL_FLOAT, 3, 0);
-        opengl_vbuffer_set_inputlayout(mainLinesVertexBuffer, 1, GL_FLOAT, 3, sizeof(f32)*3);
+        opengl_vbuffer_set_inputlayout(mainLinesVertexBuffer, 1, GL_UNSIGNED_BYTE, 4, sizeof(f32)*3);
         
-        render_line(mainLinesVertexBuffer, V3(0,0,-1), V3(200,200,-1), V3(0,1,0));
+        //render_line(mainLinesVertexBuffer, V3(0,0,-1), V3(200,200,-1), V3(0,1,0));
         
-        opengl_upload_vbuffer_data(mainLinesVertexBuffer);
+        //opengl_upload_vbuffer_data(mainLinesVertexBuffer);
         
         *mainTextVertexBuffer = opengl_make_vbuffer(&platArena, sizeof(f32)*8, 1000, 1000);
         opengl_vbuffer_set_default_inputlayout(mainTextVertexBuffer);
