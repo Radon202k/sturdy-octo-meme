@@ -92,7 +92,7 @@ generate_chunk(cubes_scene_t *scene, u32 chunkDim, s32 chunkX, s32 chunkY, s32 c
          ++k)
     {
         for (u32 j = 0;
-             j < 1;
+             j < chunkDim*3;
              ++j)
         {
             for (u32 i = 0;
@@ -108,7 +108,6 @@ generate_chunk(cubes_scene_t *scene, u32 chunkDim, s32 chunkX, s32 chunkY, s32 c
                 generate_cube(scene, x, y, z, cubeDim,
                               chunkX, chunkY, chunkZ, chunkDim,
                               blockType);
-                
             }
         }
     }
@@ -124,14 +123,14 @@ cubes_scene_generate_cubes(cubes_scene_t *scene)
     scene->linesVertexBuffer->indexCount = 0;
     
     // Draw global axes
-    render_line(scene->linesVertexBuffer,
-                V3(0,0,0), V3(100,0,0), V4(1,0,0,1));
+    draw_line(scene->linesVertexBuffer,
+              V3(0,0,0), V3(100,0,0), V4(1,0,0,1));
     
-    render_line(scene->linesVertexBuffer,
-                V3(0,0,0), V3(0,100,0), V4(0,0,1,1));
+    draw_line(scene->linesVertexBuffer,
+              V3(0,0,0), V3(0,100,0), V4(0,0,1,1));
     
-    render_line(scene->linesVertexBuffer,
-                V3(0,0,0), V3(0,0,100), V4(0,1,0,1));
+    draw_line(scene->linesVertexBuffer,
+              V3(0,0,0), V3(0,0,100), V4(0,1,0,1));
     
     
     memory_arena_t *arena = &scene->arenaPerm;
@@ -162,12 +161,14 @@ cubes_scene_generate_cubes(cubes_scene_t *scene)
                 f32 chunkMaxY = (f32)(chunkMinY + chunkDim);
                 f32 chunkMaxZ = (f32)(chunkMinZ + chunkDim);
                 
-                // left
-                render_line(scene->linesVertexBuffer,
-                            V3(chunkMinX,chunkMinY,chunkMaxZ),
-                            V3(chunkMaxX,chunkMinY,chunkMaxZ), V4(1,0,0,0.5f));
+                v3 chunkMin = V3((f32)((s32)chunkMinX),(f32)((s32)chunkMinY),(f32)((s32)chunkMinZ));
+                v3 chunkMax = V3((f32)((s32)chunkMaxX),(f32)((s32)chunkMaxY),(f32)((s32)chunkMaxZ));
                 
+                v3 chunkSize = v3_sub(chunkMax, chunkMin);
+                v3 chunkCenter = v3_add(chunkMin, v3_mul(chunkSize, 0.5f));
                 
+                draw_bounding_box(scene->linesVertexBuffer, 
+                                  rect3_center_dim(chunkCenter,chunkSize));
                 
                 
                 generate_chunk(scene, chunkDim, chunkX, chunkY, chunkZ);
@@ -193,12 +194,12 @@ cubes_scene_make_vertexbuffers(memory_pool_t *scenePool)
     scene->textVertexBuffer = &((gl_vbuffer_t *)scene->vertexBuffers.data)[2];
     
     // Lines
-    *scene->linesVertexBuffer = opengl_make_vbuffer(arena, sizeof(f32)*3+sizeof(u32), 1000, 1000);
+    *scene->linesVertexBuffer = opengl_make_vbuffer(arena, sizeof(f32)*3+sizeof(u32), 10000, 10000);
     opengl_vbuffer_set_inputlayout(scene->linesVertexBuffer, 0, GL_FLOAT, 3, 0);
     opengl_vbuffer_set_inputlayout(scene->linesVertexBuffer, 1, GL_UNSIGNED_BYTE, 4, sizeof(f32)*3);
     
     // First vertex buffer, static cubes
-    *scene->cubesVertexBuffer = opengl_make_vbuffer(arena, sizeof(f32)*8, 5000000, 500000);
+    *scene->cubesVertexBuffer = opengl_make_vbuffer(arena, sizeof(f32)*8, 5000000, 5000000);
     opengl_vbuffer_set_default_inputlayout(scene->cubesVertexBuffer);
     cubes_scene_generate_cubes(scene);
     

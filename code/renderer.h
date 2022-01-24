@@ -33,7 +33,7 @@ typedef struct line_vertex
 } line_vertex;
 
 internal void
-render_line(gl_vbuffer_t *buffer, v3 a, v3 b, v4 color)
+draw_line(gl_vbuffer_t *buffer, v3 a, v3 b, v4 color)
 {
     u32 cr = (u32)(color.r*255.0f);
     u32 cg = (u32)(color.g*255.0f);
@@ -59,5 +59,75 @@ render_line(gl_vbuffer_t *buffer, v3 a, v3 b, v4 color)
     buffer->vertexCount += 2;
     buffer->indexCount += 2;
 }
+
+
+internal void
+draw_bounding_box(gl_vbuffer_t *buffer, rect3 box)
+{
+    // X
+    draw_line(buffer, 
+              V3(box.min.x,box.min.y,box.min.z),
+              V3(box.max.x,box.min.y,box.min.z),
+              V4(0,0,0,0.3f));
+    
+    draw_line(buffer, 
+              V3(box.min.x,box.max.y,box.min.z),
+              V3(box.max.x,box.max.y,box.min.z),
+              V4(0,0,0,0.3f));
+    
+    draw_line(buffer, 
+              V3(box.min.x,box.min.y,box.max.z),
+              V3(box.max.x,box.min.y,box.max.z),
+              V4(0,0,0,0.3f));
+    
+    draw_line(buffer, 
+              V3(box.min.x,box.max.y,box.max.z),
+              V3(box.max.x,box.max.y,box.max.z),
+              V4(0,0,0,0.3f));
+    
+    // Y
+    draw_line(buffer, 
+              V3(box.min.x,box.min.y,box.min.z),
+              V3(box.min.x,box.max.y,box.min.z),
+              V4(0,0,0,0.3f));
+    
+    draw_line(buffer, 
+              V3(box.max.x,box.min.y,box.min.z),
+              V3(box.max.x,box.max.y,box.min.z),
+              V4(0,0,0,0.3f));
+    
+    draw_line(buffer, 
+              V3(box.min.x,box.min.y,box.max.z),
+              V3(box.min.x,box.max.y,box.max.z),
+              V4(0,0,0,0.3f));
+    
+    draw_line(buffer, 
+              V3(box.max.x,box.min.y,box.max.z),
+              V3(box.max.x,box.max.y,box.max.z),
+              V4(0,0,0,0.3f));
+    
+    
+    // Z
+    draw_line(buffer, 
+              V3(box.min.x,box.min.y,box.min.z),
+              V3(box.min.x,box.min.y,box.max.z),
+              V4(0,0,0,0.3f));
+    
+    draw_line(buffer, 
+              V3(box.max.x,box.min.y,box.min.z),
+              V3(box.max.x,box.min.y,box.max.z),
+              V4(0,0,0,0.3f));
+    
+    draw_line(buffer, 
+              V3(box.min.x,box.max.y,box.min.z),
+              V3(box.min.x,box.max.y,box.max.z),
+              V4(0,0,0,0.3f));
+    
+    draw_line(buffer, 
+              V3(box.max.x,box.max.y,box.min.z),
+              V3(box.max.x,box.max.y,box.max.z),
+              V4(0,0,0,0.3f));
+}
+
 
 #endif //RENDERER_H
