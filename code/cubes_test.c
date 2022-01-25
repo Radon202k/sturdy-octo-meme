@@ -1,3 +1,25 @@
+/*
+
+Try:
+- Make noise generate surface only? everything below is solid?
+start generation at top of chunk then generate everything below it?
+
+- Generate vertex buffer every frame, only draw visible faces
+ask per cube if there are cubes around? that doesnt seem so reliable,
+but maybe because of the geometry is usually filled? what about caves?
+should chunks be rendered from bottom of the world up or should it be
+cut off based on player's Y position?
+
+- Time frames, keep buffer with 32 frames or so and add ability to see
+ which functions are stalling so we can debug frame drops...
+
+- how much memory is OK to use for vertex buffer to draw cubes? 32 mb? 
+256 mb? 2 gb? and index buffer?
+
+- direction sun light (simple phong),  shadows??
+
+*/
+
 typedef struct cubes_scene_t
 {
     memory_arena_t arenaPerm;
@@ -65,38 +87,27 @@ generate_cube(cubes_scene_t *scene, s32 x, s32 y, s32 z, u32 cubeDim,
 }
 
 internal void
-generate_chunk(cubes_scene_t *scene, u32 chunkDim, s32 chunkX, s32 chunkY, s32 chunkZ)
+generate_chunk(cubes_scene_t *scene, v3 chunkDim, s32 chunkX, s32 chunkY, s32 chunkZ)
 {
-    s32 range = chunkDim/2;
+    s32 range2d = (s32)(chunkDim.x/2);
     
     // u32 blockType = rand() % 10 + chunkX;
     u32 blockType = 0;
     
     temp_memory_t mem = begin_temp_memory(&scene->arenaTemp);
     
-    u32 chunkDimSq = chunkDim*chunkDim;
-    
-#if 0
-    f32 *noise2dSeed = push_array(mem.arena, chunkDimSq, f32, 4);
-    f32 *noise2d = push_array(mem.arena, chunkDimSq, f32, 4);
-    
-    perlinlike_noise_seed(chunkDimSq, noise2dSeed);
-    perlinlike_noise2d(chunkDim, chunkDim, scene->noiseOctave, scene->noiseBias, noise2dSeed, noise2d);
-#else
-    
-    
-#endif
+    u32 chunkDimSq = (u32)(chunkDim.x*chunkDim.x);
     
     for (u32 k = 0;
-         k <= chunkDim;
+         k <= (u32)chunkDim.z;
          ++k)
     {
         for (u32 j = 0;
-             j < chunkDim*3;
+             j <= (u32)(chunkDim.y);
              ++j)
         {
             for (u32 i = 0;
-                 i <= chunkDim;
+                 i <= (u32)(chunkDim.x);
                  ++i)
             {
                 u32 cubeDim = 1;
@@ -105,9 +116,14 @@ generate_chunk(cubes_scene_t *scene, u32 chunkDim, s32 chunkX, s32 chunkY, s32 c
                 u32 y = (j * cubeDim);
                 u32 z = (k * cubeDim);
                 
-                generate_cube(scene, x, y, z, cubeDim,
-                              chunkX, chunkY, chunkZ, chunkDim,
-                              blockType);
+                if ((j == 0 || j == chunkDim.y) ||
+                    (i == 0 || i == chunkDim.x) ||
+                    (k == 0 || k == chunkDim.z))
+                {
+                    generate_cube(scene, x, y, z, cubeDim,
+                                  chunkX, chunkY, chunkZ, (s32)chunkDim.x,
+                                  blockType);
+                }
             }
         }
     }
@@ -134,12 +150,12 @@ cubes_scene_generate_cubes(cubes_scene_t *scene)
     
     
     memory_arena_t *arena = &scene->arenaPerm;
-    s32 chunkRange = 1;
+    s32 chunkRange = 2;
     
     s32 totalWidth = 5;
     s32 totalHeight = 5;
     
-    u32 chunkDim = 8;
+    v3 chunkDim = V3(16,20,16);
     
     for (s32 chunkZ = -chunkRange;
          chunkZ <= chunkRange;
@@ -153,13 +169,13 @@ cubes_scene_generate_cubes(cubes_scene_t *scene)
                  chunkX <= chunkRange;
                  ++chunkX)
             {
-                f32 chunkMinX = (f32)chunkX * chunkDim;
-                f32 chunkMinY = (f32)chunkY * chunkDim;
-                f32 chunkMinZ = (f32)chunkZ * chunkDim;
+                f32 chunkMinX = (f32)chunkX * chunkDim.x;
+                f32 chunkMinY = (f32)chunkY * chunkDim.y;
+                f32 chunkMinZ = (f32)chunkZ * chunkDim.z;
                 
-                f32 chunkMaxX = (f32)(chunkMinX + chunkDim);
-                f32 chunkMaxY = (f32)(chunkMinY + chunkDim);
-                f32 chunkMaxZ = (f32)(chunkMinZ + chunkDim);
+                f32 chunkMaxX = (f32)(chunkMinX + chunkDim.x);
+                f32 chunkMaxY = (f32)(chunkMinY + chunkDim.y);
+                f32 chunkMaxZ = (f32)(chunkMinZ + chunkDim.z);
                 
                 v3 chunkMin = V3((f32)((s32)chunkMinX),(f32)((s32)chunkMinY),(f32)((s32)chunkMinZ));
                 v3 chunkMax = V3((f32)((s32)chunkMaxX),(f32)((s32)chunkMaxY),(f32)((s32)chunkMaxZ));
@@ -194,17 +210,17 @@ cubes_scene_make_vertexbuffers(memory_pool_t *scenePool)
     scene->textVertexBuffer = &((gl_vbuffer_t *)scene->vertexBuffers.data)[2];
     
     // Lines
-    *scene->linesVertexBuffer = opengl_make_vbuffer(arena, sizeof(f32)*3+sizeof(u32), 10000, 10000);
+    *scene->linesVertexBuffer = opengl_make_vbuffer(arena, sizeof(f32)*3+sizeof(u32), megabytes(2));
     opengl_vbuffer_set_inputlayout(scene->linesVertexBuffer, 0, GL_FLOAT, 3, 0);
     opengl_vbuffer_set_inputlayout(scene->linesVertexBuffer, 1, GL_UNSIGNED_BYTE, 4, sizeof(f32)*3);
     
     // First vertex buffer, static cubes
-    *scene->cubesVertexBuffer = opengl_make_vbuffer(arena, sizeof(f32)*8, 5000000, 5000000);
+    *scene->cubesVertexBuffer = opengl_make_vbuffer(arena, sizeof(f32)*8, megabytes(32));
     opengl_vbuffer_set_default_inputlayout(scene->cubesVertexBuffer);
     cubes_scene_generate_cubes(scene);
     
     // Third vertex buffer, debug text
-    *scene->textVertexBuffer = opengl_make_vbuffer(arena, sizeof(f32)*8, 1000, 1000);
+    *scene->textVertexBuffer = opengl_make_vbuffer(arena, sizeof(f32)*8, megabytes(2));
     opengl_vbuffer_set_default_inputlayout(scene->textVertexBuffer);
 }
 

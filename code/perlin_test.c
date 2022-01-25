@@ -38,7 +38,7 @@ perlin_scene_make_vertexbuffers(memory_pool_t *scenePool)
     
     scene->canvas2dVertexBuffer = &((gl_vbuffer_t *)scene->vertexBuffers.data)[0];
     
-    *scene->canvas2dVertexBuffer = opengl_make_vbuffer(arena, sizeof(f32)*8, 1000, 1000);
+    *scene->canvas2dVertexBuffer = opengl_make_vbuffer(arena, sizeof(f32)*8, megabytes(2));
     opengl_vbuffer_set_default_inputlayout(scene->canvas2dVertexBuffer);
 }
 

@@ -60,11 +60,11 @@ win32_init(void)
     os.perfFrequency = (f32)perfFrequency.QuadPart;
     
     // Memory
-    size_t platSize = megabytes(2);
+    size_t platSize = megabytes(64);
     u8 *platBase = 0;
     win32_allocate_memory_pool((void *)terabytes(1), &platBase, platSize);
     
-    size_t permSize = megabytes(512);
+    size_t permSize = megabytes(128);
     size_t tranSize = megabytes(256);
     size_t poolSize = permSize + tranSize;
     win32_allocate_memory_pool((void *)terabytes(2), &os.memoryPool, poolSize);

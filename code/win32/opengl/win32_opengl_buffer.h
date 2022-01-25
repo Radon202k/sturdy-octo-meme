@@ -18,7 +18,7 @@ opengl_upload_vbuffer_data(gl_vbuffer_t *b)
 }
 
 internal gl_vbuffer_t
-opengl_make_vbuffer(memory_arena_t *arena, GLsizei vertexSize, u32 maxVertexCount, u32 maxIndexCount)
+opengl_make_vbuffer(memory_arena_t *arena, GLsizei vertexSize, u32 maxSize)
 {
     gl_vbuffer_t result = 
     {
@@ -27,9 +27,9 @@ opengl_make_vbuffer(memory_arena_t *arena, GLsizei vertexSize, u32 maxVertexCoun
         .ebo = (GLuint)-1,
         .vertexSize = vertexSize,
         .vertexCount = 0,
-        .vertices = push_size(arena, maxVertexCount*vertexSize, 4),
+        .vertices = (f32 *)push_size(arena, maxSize, 4),
         .indexCount = 0,
-        .indices = push_array(arena, maxIndexCount, u32, 4),
+        .indices = (u32 *)push_size(arena, maxSize, 4),
     };
     
     // Create objects/handles
