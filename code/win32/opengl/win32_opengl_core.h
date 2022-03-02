@@ -42,6 +42,7 @@ opengl_begin_frame(gl_context_t *gl)
     // Setup output size covering all client area of window
     glViewport(0, 0, gl->windowWidth, gl->windowHeight);
     
+    glClearDepth(0);
     // clear screen
     glClearColor(0.392f, 0.584f, 0.929f, 1.f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);

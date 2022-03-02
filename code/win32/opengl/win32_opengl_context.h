@@ -146,8 +146,9 @@ opengl_set_global_state(gl_context_t *gl)
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     
     // Enable depth testing
+    glDepthFunc(GL_GEQUAL);
+    glClipControl(GL_LOWER_LEFT, GL_ZERO_TO_ONE);
     glEnable(GL_DEPTH_TEST);
-    
     // Enable culling
     glEnable(GL_CULL_FACE);
 }

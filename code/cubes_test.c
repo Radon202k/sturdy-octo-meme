@@ -4,6 +4,8 @@ Try:
 - Make noise generate surface only? everything below is solid?
 start generation at top of chunk then generate everything below it?
 
+- Cast rays from camera to know which faces to draw?
+
 - Generate vertex buffer every frame, only draw visible faces
 ask per cube if there are cubes around? that doesnt seem so reliable,
 but maybe because of the geometry is usually filled? what about caves?
@@ -98,35 +100,26 @@ generate_chunk(cubes_scene_t *scene, v3 chunkDim, s32 chunkX, s32 chunkY, s32 ch
     
     u32 chunkDimSq = (u32)(chunkDim.x*chunkDim.x);
     
-    for (u32 k = 0;
-         k <= (u32)chunkDim.z;
-         ++k)
+    for (u32 j = 0;
+         j <= (u32)(chunkDim.y);
+         ++j)
     {
-        for (u32 j = 0;
-             j <= (u32)(chunkDim.y);
-             ++j)
+        for (u32 i = 0;
+             i <= (u32)(chunkDim.x);
+             ++i)
         {
-            for (u32 i = 0;
-                 i <= (u32)(chunkDim.x);
-                 ++i)
-            {
-                u32 cubeDim = 1;
-                
-                u32 x = (i * cubeDim);
-                u32 y = (j * cubeDim);
-                u32 z = (k * cubeDim);
-                
-                if ((j == 0 || j == chunkDim.y) ||
-                    (i == 0 || i == chunkDim.x) ||
-                    (k == 0 || k == chunkDim.z))
-                {
-                    generate_cube(scene, x, y, z, cubeDim,
-                                  chunkX, chunkY, chunkZ, (s32)chunkDim.x,
-                                  blockType);
-                }
-            }
+            u32 cubeDim = 1;
+            
+            u32 x = (i * cubeDim);
+            u32 y = 0;
+            u32 z = (j * cubeDim);
+            
+            generate_cube(scene, x, y, z, cubeDim,
+                          chunkX, chunkY, chunkZ, (s32)chunkDim.x,
+                          blockType);
         }
     }
+    
     
     end_temp_memory(mem);
 }
@@ -248,9 +241,8 @@ cubes_scene_update_renderpasses(gl_renderpass_t renderPasses[], camera_t *camera
     renderPasses[0].view = camera_make_view_matrix(camera);
     renderPasses[1].view = camera_make_view_matrix(camera);
     
-    f32 aspect = (f32)os.gl.windowWidth / (f32)os.gl.windowHeight;
-    renderPasses[0].proj = mat4_perspective(aspect, 0.6f, 0.1f, 100.0f).forward;
-    renderPasses[1].proj = mat4_perspective(aspect, 0.6f, 0.1f, 100.0f).forward;
+    renderPasses[0].proj = mat4_infinite_z_perspective((f32)os.gl.windowWidth, (f32)os.gl.windowHeight, 15).forward;
+    renderPasses[1].proj = mat4_infinite_z_perspective((f32)os.gl.windowWidth, (f32)os.gl.windowHeight, 15).forward;
     renderPasses[2].proj = mat4_orthographic((f32)os.gl.windowWidth, (f32)os.gl.windowHeight).forward;
 }
 

@@ -230,6 +230,33 @@ mat4_mul_v4(mat4 A, v4 P)
 }
 
 internal mat4_inv
+mat4_infinite_z_perspective(f32 w, f32 h, f32 zNear)
+{
+    f32 a = 1;
+    f32 b = (w/h);
+    f32 c = zNear;
+    f32 d = -1;
+    
+    mat4_inv result =
+    {
+        {
+            a,0,0,0,
+            0,b,0,0,
+            0,0,0,c,
+            0,0,d,0,
+        },
+        {
+            1,0,0,0,
+            0,1,0,0,
+            0,0,1,0,
+            0,0,0,1,
+        },
+    };
+    
+    return(result);
+}
+
+internal mat4_inv
 mat4_perspective(f32 ar, f32 fov, f32 zNear, f32 zFar)
 {
     f32 a = 1.0f;

@@ -3,6 +3,8 @@
 #ifndef WIN32_OPENGL_EXTENSIONS_H
 #define WIN32_OPENGL_EXTENSIONS_H
 
+typedef void (* PFNGLCLIPCONTROL) (GLenum origin, GLenum depth);
+
 #define GL_FUNCTIONS(X) \
 X(PFNGLCREATEBUFFERSPROC,            glCreateBuffers            ) \
 X(PFNGLBINDBUFFERPROC,               glBindBuffer               ) \
@@ -26,7 +28,8 @@ X(PFNGLCREATETEXTURESPROC,           glCreateTextures           ) \
 X(PFNGLTEXTUREPARAMETERIPROC,        glTextureParameteri        ) \
 X(PFNGLTEXTURESTORAGE2DPROC,         glTextureStorage2D         ) \
 X(PFNGLTEXTURESUBIMAGE2DPROC,        glTextureSubImage2D        ) \
-X(PFNGLDEBUGMESSAGECALLBACKPROC,     glDebugMessageCallback     )
+X(PFNGLDEBUGMESSAGECALLBACKPROC,     glDebugMessageCallback     ) \
+X(PFNGLCLIPCONTROL,                  glClipControl              )
 
 #define X(type, name) static type name;
 GL_FUNCTIONS(X)
