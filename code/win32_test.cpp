@@ -12,6 +12,131 @@
 #define HANE3D_STB_TRUETYPE
 #include "h:\hane3d\hane3d.h"
 
+enum material
+{
+    material_null,
+    material_air,
+    material_dirt,
+    material_stone,
+    material_cobblestone,
+};
+
+#define CHUNK_SIZE 8
+
+struct chunk
+{
+    s32 x;
+    s32 y;
+    s32 z;
+    
+    u32 *voxels;
+};
+
+struct voxel_map
+{
+    hnMandala *permanent;
+    chunk *hash[2048];
+};
+
+inline u32
+getHashIndex(voxel_map *map, s32 x, s32 y, s32 z)
+{
+    assert(arrayCount(map->hash) % 2 == 0);
+    
+    assert(x < 100000);
+    assert(y < 100000);
+    assert(z < 100000);
+    // TODO: Better hash function !!
+    u32 hashIndex = (u32)(x * 17 + y * 39 + z * 121);
+    return hashIndex % arrayCount(map->hash);
+}
+
+inline chunk *
+getChunk(voxel_map *map, s32 x, s32 y, s32 z)
+{
+    u32 hashIndex = getHashIndex(map, x, y, z);
+    chunk *result = map->hash[hashIndex];
+    
+    if (result)
+    {
+        assert(result->x < 100000);
+        assert(result->y < 100000);
+        assert(result->z < 100000);
+    }
+    
+    return result;
+}
+
+inline s32
+getVoxelIndex(s32 x, s32 y, s32 z)
+{
+    s32 result = z*CHUNK_SIZE*CHUNK_SIZE + y*CHUNK_SIZE + x;
+    return result;
+}
+
+inline s32
+getVoxel(chunk *c, s32 x, s32 y, s32 z)
+{
+    s32 index = getVoxelIndex(x, y, z);
+    s32 result = c->voxels[index];
+    return result;
+}
+
+inline void
+setVoxel(chunk *c, s32 x, s32 y, s32 z, u32 value)
+{
+    s32 index = getVoxelIndex(x, y, z);
+    c->voxels[index] = value;
+}
+
+inline chunk *
+generateChunk(voxel_map *map, s32 x, s32 y, s32 z)
+{
+    u32 hashIndex = getHashIndex(map, x, y, z);
+    
+    map->hash[hashIndex] = hnPushStruct(map->permanent, chunk);
+    memset(map->hash[hashIndex], 0, sizeof(chunk));
+    
+    chunk *result = map->hash[hashIndex];
+    
+    result->x = x;
+    result->y = y;
+    result->z = z;
+    
+    result->voxels = hnPushArray(map->permanent, 
+                                 CHUNK_SIZE*CHUNK_SIZE*CHUNK_SIZE,
+                                 u32);
+    
+    memset(result->voxels, 0, CHUNK_SIZE*CHUNK_SIZE*CHUNK_SIZE*4);
+    
+    s32 chunkDim = CHUNK_SIZE;
+    for (s32 voxelZ = 0;
+         voxelZ < chunkDim;
+         ++voxelZ)
+    {
+        for (s32 voxelY = 0;
+             voxelY < chunkDim;
+             ++voxelY)
+        {
+            for (s32 voxelX = 0;
+                 voxelX < chunkDim;
+                 ++voxelX)
+            {
+                u32 cubeMaterial = 1;
+                setVoxel(result, voxelX, voxelY, voxelZ, cubeMaterial);
+            }
+        }
+    }
+    
+    
+    assert(result->x < 100000);
+    assert(result->y < 100000);
+    assert(result->z < 100000);
+    
+    
+    return result;
+}
+
 struct transform
 {
     v3 translation;
@@ -59,6 +184,7 @@ struct globals
     
     f64 time;
     
+    voxel_map overworld;
     camera cam;
     
     v2 lastMouseP;
@@ -126,6 +252,47 @@ struct vertex3d
     v4 col;
 };
 
+internal b32
+hasSpaceAround(chunk *c, s32 x, s32 y, s32 z)
+{
+    b32 result = false;
+    
+    // If it is in the boundary of the chunk
+    if ((x == 0 || x == 7) || (y == 0 || y == 7) || (z == 0 || z == 7))
+    {
+        result = true;
+    }
+    else
+    {
+        if (getVoxel(c, x-1, y, z) == 0) // Left
+        {
+            result = true;
+        }
+        else if (getVoxel(c, x+1, y, z) == 0) // Right
+        {
+            result = true;
+        }
+        else if (getVoxel(c, x, y-1, z) == 0) // Below
+        {
+            result = true;
+        }
+        else if (getVoxel(c, x, y+1, z) == 0) // Above
+        {
+            result = true;
+        }
+        else if (getVoxel(c, x, y, z-1) == 0) // Font
+        {
+            result = true;
+        }
+        else if (getVoxel(c, x, y, z+1) == 0) // Back
+        {
+            result = true;
+        }
+    }
+    
+    return result;
+}
+
 int WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdLine, int cmdShow)
 {
 #ifdef HANE3D_DEBUG
@@ -133,8 +300,8 @@ int WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdLine, int cmdSh
 #else
     void *platMemAddress = 0;
 #endif
-    u32 platPermSize = megabytes(128);
-    u32 platTempSize = megabytes(128);
+    u32 platPermSize = gigabytes(2);
+    u32 platTempSize = megabytes(512);
     u32 totalMemSize = platPermSize + platTempSize;
     
     app.permanent = hnInitMandala(platPermSize, hnAllocateMemory(platMemAddress, totalMemSize));
@@ -144,8 +311,8 @@ int WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdLine, int cmdSh
     app.renderer = hnInitRenderer(&app.permanent, &app.temporary, 800, 600, "Hello, World!");
     // glClipControl(GL_LOWER_LEFT, GL_ZERO_TO_ONE);
     
-    app.vb = hnMakeVertexBuffer(app.renderer, megabytes(32), sizeof(f32)*13);
-    app.ib = hnMakeIndexBuffer(app.renderer, megabytes(32));
+    app.vb = hnMakeVertexBuffer(app.renderer, megabytes(256), sizeof(f32)*13);
+    app.ib = hnMakeIndexBuffer(app.renderer, megabytes(256));
     
     hnSetInputLayout(&app.vb, 0, GL_FLOAT, 3, offsetof(vertex3d, pos));
     hnSetInputLayout(&app.vb, 1, GL_FLOAT, 3, offsetof(vertex3d, uv));
@@ -237,6 +404,7 @@ layout (binding=0)
     
     hnEndTempMemory(tempMem);
     
+    
     app.cam.yaw = -90.0f;
     app.cam.pitch = 0;
     
@@ -248,19 +416,83 @@ layout (binding=0)
     
     app.lastMouseP = win32.input.mouse.pos;
     
-    v3 scale = v3{1,1,1};
-    f32 maxHeight = 16;
-    s32 chunkDim = 32;
-    for (s32 y = -chunkDim/2;
-         y < chunkDim/2;
-         ++y)
+    app.overworld.permanent = &app.permanent;
+    memset(app.overworld.hash, 0, sizeof(chunk *) * arrayCount(app.overworld.hash));
+    
+    // TODO: Z Layers!
+    for (s32 chunkX = -8;
+         chunkX < 8;
+         ++chunkX)
     {
-        for (s32 x = -chunkDim/2;
-             x < chunkDim/2;
-             ++x)
+        for (s32 chunkY = -8;
+             chunkY < 8;
+             ++chunkY)
         {
-            v3 p = {x*scale.x, floorf(maxHeight*(f32)hnPerlin2D(x,y,0.1f,3)) , y*scale.y};
-            hnPushCubeIndexed(&app.vb, &app.ib, app.dirt, p, scale, hnGOLD);
+            if (chunkX == 1 && chunkY == 4)
+            {
+                int breakHere = 3;
+            }
+            
+            chunk *c = getChunk(&app.overworld, chunkX, chunkY, 0);
+            if (!c)
+            {
+                c = generateChunk(&app.overworld, chunkX, chunkY, 0);
+                assert(c->x < 100000);
+                assert(c->y < 100000);
+                assert(c->z < 100000);
+            }
+            else
+            {
+                assert(c->x < 100000);
+                assert(c->y < 100000);
+                assert(c->z < 100000);
+            }
+            
+            
+            assert(c);
+            assert(c->x < 100000);
+            assert(c->y < 100000);
+            assert(c->z < 100000);
+            
+            f32 maxHeight = 8;
+            v3 scale = v3{1,1,1};
+            for (s32 z = 0;
+                 z < CHUNK_SIZE;
+                 ++z)
+            {
+                for (s32 y = 0;
+                     y < CHUNK_SIZE;
+                     ++y)
+                {
+                    for (s32 x = 0;
+                         x < CHUNK_SIZE;
+                         ++x)
+                    {
+                        u32 material = getVoxel(c, x, y, z);
+                        
+                        f32 compX = chunkX*scale.x*CHUNK_SIZE + x;
+                        f32 compY = chunkY*scale.y*CHUNK_SIZE + y;
+                        
+                        v3 p = 
+                        {
+                            compX*scale.x,
+                            0*scale.z*CHUNK_SIZE + z*scale.z + floorf(maxHeight*(f32)hnPerlin2D(compX,compY,0.1f,3)),
+                            compY*scale.y
+                        };
+                        
+                        hnSprite sprite = app.white;
+                        if (material == 1)
+                        {
+                            sprite = app.dirt;
+                        }
+                        
+                        if (hasSpaceAround(c, x, y, z))
+                        {
+                            hnPushCubeIndexed(&app.vb, &app.ib, sprite, p, scale, hnWHITE);
+                        }
+                    }
+                }
+            }
         }
     }
     
@@ -303,6 +535,17 @@ layout (binding=0)
         {
             app.cam.pos += speed * normalize(cross(app.cam.front, app.cam.up));
         }
+        
+        if (key->space.down)
+        {
+            app.cam.pos += speed * app.cam.up;
+        }
+        
+        if (key->shift.down)
+        {
+            app.cam.pos -= speed * app.cam.up;
+        }
+        
         
         v2 deltaP = mouse->pos - app.lastMouseP;
         app.lastMouseP = mouse->pos;
