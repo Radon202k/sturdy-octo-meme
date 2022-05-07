@@ -12,6 +12,8 @@
 #define HANE3D_STB_TRUETYPE
 #include "h:\hane3d\hane3d.h"
 
+#define CHUNK_SIZE v3{8,8,32}
+
 enum material
 {
     material_null,
@@ -20,8 +22,6 @@ enum material
     material_stone,
     material_cobblestone,
 };
-
-#define CHUNK_SIZE 8
 
 struct chunk
 {
@@ -70,7 +70,7 @@ getChunk(voxel_map *map, s32 x, s32 y, s32 z)
 inline s32
 getVoxelIndex(s32 x, s32 y, s32 z)
 {
-    s32 result = z*CHUNK_SIZE*CHUNK_SIZE + y*CHUNK_SIZE + x;
+    s32 result = (s32)(z*CHUNK_SIZE.x*CHUNK_SIZE.y + y*CHUNK_SIZE.x + x);
     return result;
 }
 
@@ -103,36 +103,54 @@ generateChunk(voxel_map *map, s32 x, s32 y, s32 z)
     result->y = y;
     result->z = z;
     
+    s32 voxelCount = (s32)(CHUNK_SIZE.x*CHUNK_SIZE.y*CHUNK_SIZE.z);
     result->voxels = hnPushArray(map->permanent, 
-                                 CHUNK_SIZE*CHUNK_SIZE*CHUNK_SIZE,
+                                 voxelCount,
                                  u32);
     
-    memset(result->voxels, 0, CHUNK_SIZE*CHUNK_SIZE*CHUNK_SIZE*4);
+    memset(result->voxels, 0, voxelCount*4);
+    f32 maxHeight = 32;
     
-    s32 chunkDim = CHUNK_SIZE;
     for (s32 voxelZ = 0;
-         voxelZ < chunkDim;
+         voxelZ < CHUNK_SIZE.z;
          ++voxelZ)
     {
         for (s32 voxelY = 0;
-             voxelY < chunkDim;
+             voxelY < CHUNK_SIZE.y;
              ++voxelY)
         {
             for (s32 voxelX = 0;
-                 voxelX < chunkDim;
+                 voxelX < CHUNK_SIZE.x;
                  ++voxelX)
             {
                 u32 cubeMaterial = 1;
-                setVoxel(result, voxelX, voxelY, voxelZ, cubeMaterial);
+                
+                f32 compX = (f32)(x*CHUNK_SIZE.x + voxelX);
+                f32 compY = (f32)(y*CHUNK_SIZE.y + voxelY);
+                f32 compZ = (f32)(z*CHUNK_SIZE.z + voxelZ);
+                
+                f32 height = floorf(maxHeight*(f32)hnPerlin2D(compX,compY,0.08f,6));
+                
+                if (compZ <= height)
+                {
+                    if (compZ > 20)
+                    {
+                        cubeMaterial = 3;
+                    }
+                    else if (compZ > 10)
+                    {
+                        cubeMaterial = 2;
+                    }
+                    
+                    setVoxel(result, voxelX, voxelY, voxelZ, cubeMaterial);
+                }
+                else
+                {
+                    setVoxel(result, voxelX, voxelY, voxelZ, 0);
+                }
             }
         }
     }
-    
-    
-    assert(result->x < 100000);
-    assert(result->y < 100000);
-    assert(result->z < 100000);
-    
     
     return result;
 }
@@ -174,6 +192,7 @@ struct globals
     // Blocks inside atlas
     hnSprite dirt;
     hnSprite stone;
+    hnSprite snow;
     hnSprite cobblestone;
     
     hnGpuBuffer vb;
@@ -230,7 +249,7 @@ updateProjectionMatrix(void)
     f32 ar = win32.clientDim.x / win32.clientDim.y;
     f32 focalLength = 45;
     
-    mat4x4_inv proj = hnPerspectiveProjection(ar, focalLength, 0.1f, 100.0f);
+    mat4x4_inv proj = hnPerspectiveProjection(ar, focalLength, 0.1f, 1000.0f);
     mat4x4 view = cameraViewMatrix(&app.cam);
     
     memcpy((u8 *)app.pass.uniforms[0].data, proj.forward.e, sizeof(proj.forward));
@@ -332,14 +351,16 @@ int WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdLine, int cmdSh
             layout (location=1) uniform mat4 view;
             
             out gl_PerVertex { vec4 gl_Position; };
-            out vec3 uv;
+            out vec3 fragP;
+out vec3 uv;
             out vec3 normal;
             out vec4 color;
             
             void main()
             {
                 gl_Position = vec4(inPos, 1) * view * proj;
-                uv = inUV;
+                fragP = inPos;
+uv = inUV;
                  normal = inNor;
                 color = inCol;
             }
@@ -348,7 +369,8 @@ int WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdLine, int cmdSh
         char fragShader[] = R"FSHADER(
             #version 450 core
     
-            in vec3 uv;
+            in vec3 fragP;
+in vec3 uv;
             in vec3 normal;
             in vec4 color;
             
@@ -360,8 +382,21 @@ layout (binding=0)
             
             void main()
             {
-                vec4 texelColor = texture(textureArray, uv);
-                outColor = texelColor * color;
+vec3 lightP = vec3(10,30,20);
+vec3 lightColor = vec3(1,1,0);
+
+float ambientStrength = 0.1;
+vec3 ambient = ambientStrength * lightColor;
+
+vec3 lightDir = normalize(lightP - fragP);
+float diff = max(dot(normal, lightDir), 0.0);
+vec3 diffuse = diff * lightColor;
+
+                 vec3 lightResult = (ambient + diffuse);
+                
+vec4 texelColor = texture(textureArray, uv);
+
+outColor = vec4(lightResult, 1) * color * texelColor;
             }
             )FSHADER";
         
@@ -395,7 +430,9 @@ layout (binding=0)
     hnLoadTexture2DIntoArray(app.renderer, &app.textureArray, &app.circle, "images/circle.png", hnNEAREST);
     hnLoadTexture2DIntoArray(app.renderer, &app.textureArray, &app.atlas, "images/atlas.png", hnNEAREST);
     
-    app.dirt = hnMakeSprite(app.atlas,64,{2,0},{3,1});
+    app.dirt = hnMakeSprite(app.atlas,16,{2,0},{3,1});
+    app.stone = hnMakeSprite(app.atlas,16,{1,0},{2,1});
+    app.snow = hnMakeSprite(app.atlas,16,{2,4},{3,5});
     
     glGenerateTextureMipmap(app.textureArray.handle);
     
@@ -437,56 +474,50 @@ layout (binding=0)
             if (!c)
             {
                 c = generateChunk(&app.overworld, chunkX, chunkY, 0);
-                assert(c->x < 100000);
-                assert(c->y < 100000);
-                assert(c->z < 100000);
-            }
-            else
-            {
-                assert(c->x < 100000);
-                assert(c->y < 100000);
-                assert(c->z < 100000);
             }
             
-            
-            assert(c);
-            assert(c->x < 100000);
-            assert(c->y < 100000);
-            assert(c->z < 100000);
-            
-            f32 maxHeight = 8;
             v3 scale = v3{1,1,1};
             for (s32 z = 0;
-                 z < CHUNK_SIZE;
+                 z < CHUNK_SIZE.z;
                  ++z)
             {
                 for (s32 y = 0;
-                     y < CHUNK_SIZE;
+                     y < CHUNK_SIZE.y;
                      ++y)
                 {
                     for (s32 x = 0;
-                         x < CHUNK_SIZE;
+                         x < CHUNK_SIZE.x;
                          ++x)
                     {
                         u32 material = getVoxel(c, x, y, z);
                         
-                        f32 compX = chunkX*scale.x*CHUNK_SIZE + x;
-                        f32 compY = chunkY*scale.y*CHUNK_SIZE + y;
+                        f32 compX = chunkX*scale.x*CHUNK_SIZE.x + x;
+                        f32 compY = chunkY*scale.y*CHUNK_SIZE.y + y;
+                        f32 compZ = 0*scale.z*CHUNK_SIZE.z + z;
                         
                         v3 p = 
                         {
                             compX*scale.x,
-                            0*scale.z*CHUNK_SIZE + z*scale.z + floorf(maxHeight*(f32)hnPerlin2D(compX,compY,0.1f,3)),
+                            compZ*scale.z,
                             compY*scale.y
                         };
                         
                         hnSprite sprite = app.white;
+                        v4 color = {};
                         if (material == 1)
                         {
                             sprite = app.dirt;
                         }
+                        else if (material == 2)
+                        {
+                            sprite = app.stone;
+                        }
+                        else if (material == 3)
+                        {
+                            sprite = app.snow;
+                        }
                         
-                        if (hasSpaceAround(c, x, y, z))
+                        if (material && hasSpaceAround(c, x, y, z))
                         {
                             hnPushCubeIndexed(&app.vb, &app.ib, sprite, p, scale, hnWHITE);
                         }
