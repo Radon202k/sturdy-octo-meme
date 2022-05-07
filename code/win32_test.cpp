@@ -1,6 +1,15 @@
+#define STBI_ONLY_PNG
+#define STB_IMAGE_IMPLEMENTATION
+#include "h:\hane3d\libs\stb_image.h"
+
+#define STB_TRUETYPE_IMPLEMENTATION
+#include "h:\hane3d\libs\stb_truetype.h"
+
 #define HANE3D_DEBUG
 #define HANE3D_WIN32
 #define HANE3D_OPENGL
+#define HANE3D_STB_IMAGE
+#define HANE3D_STB_TRUETYPE
 #include "h:\hane3d\hane3d.h"
 
 struct transform
@@ -13,9 +22,11 @@ struct transform
 struct camera
 {
     v3 pos;
-    f32 pitch;
+    v3 front;
+    v3 up;
+    
     f32 yaw;
-    f32 roll;
+    f32 pitch;
 };
 
 struct globals
@@ -26,20 +37,30 @@ struct globals
     hnRenderer *renderer;
     hnAudio *audio;
     
-    hnTexture2DArray textureArray;
-    
     hnShader shader;
+    hnFont font;
+    
+    hnTexture2DArray textureArray;
+    hnSprite fontSprite;
+    hnSprite white;
+    hnSprite circle;
+    
+    hnSprite atlas;
+    // Blocks inside atlas
+    hnSprite dirt;
+    hnSprite stone;
+    hnSprite cobblestone;
     
     hnGpuBuffer vb;
     hnGpuBuffer ib;
     hnRenderPass pass;
     
+    hnRandomSeries entropy;
+    
     f64 time;
     
     camera cam;
-    transform camTarget;
     
-    b32 dragging;
     v2 lastMouseP;
 };
 
@@ -48,9 +69,21 @@ global globals app;
 internal mat4x4
 cameraViewMatrix(camera *cam)
 {
-    mat4x4 result = hnRotationXMatrix(cam->pitch);
-    result = result * hnRotationYMatrix(cam->yaw);
-    result = result * hnTranslationMatrix(-cam->pos);
+    // Note: cam dir points in the opposite direction of the camera
+    // That is so that the z axis is negated and we can specify
+    // positive values for the z instead of negative ones.
+    
+    v3 dir =
+    {
+        cosf(toRadians(cam->yaw)) * cosf(toRadians(cam->pitch)),
+        sinf(toRadians(cam->pitch)),
+        sinf(toRadians(cam->yaw)) * cosf(toRadians(cam->pitch))
+    };
+    
+    cam->front = normalize(dir);
+    
+    mat4x4 result = hnLookAtMatrix(cam->pos, cam->pos + cam->front, cam->up);
+    
     return result;
 }
 
@@ -72,12 +105,10 @@ updateProjectionMatrix(void)
     f32 focalLength = 45;
     
     mat4x4_inv proj = hnPerspectiveProjection(ar, focalLength, 0.1f, 100.0f);
-    
     mat4x4 view = cameraViewMatrix(&app.cam);
     
-    mat4x4 projview = proj.forward * view;
-    
-    memcpy((u8 *)app.pass.uniforms[0].data, projview.data, sizeof(projview));
+    memcpy((u8 *)app.pass.uniforms[0].data, proj.forward.e, sizeof(proj.forward));
+    memcpy((u8 *)app.pass.uniforms[1].data, view.e, sizeof(view));
 }
 
 internal void
@@ -90,7 +121,7 @@ hnResizeCallback(void)
 struct vertex3d
 {
     v3 pos;
-    v2 uv;
+    v3 uv;
     v3 nor;
     v4 col;
 };
@@ -113,11 +144,11 @@ int WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdLine, int cmdSh
     app.renderer = hnInitRenderer(&app.permanent, &app.temporary, 800, 600, "Hello, World!");
     // glClipControl(GL_LOWER_LEFT, GL_ZERO_TO_ONE);
     
-    app.vb = hnMakeVertexBuffer(app.renderer, megabytes(32), sizeof(f32)*12);
+    app.vb = hnMakeVertexBuffer(app.renderer, megabytes(32), sizeof(f32)*13);
     app.ib = hnMakeIndexBuffer(app.renderer, megabytes(32));
     
     hnSetInputLayout(&app.vb, 0, GL_FLOAT, 3, offsetof(vertex3d, pos));
-    hnSetInputLayout(&app.vb, 1, GL_FLOAT, 2, offsetof(vertex3d, uv));
+    hnSetInputLayout(&app.vb, 1, GL_FLOAT, 3, offsetof(vertex3d, uv));
     hnSetInputLayout(&app.vb, 2, GL_FLOAT, 3, offsetof(vertex3d, nor));
     hnSetInputLayout(&app.vb, 3, GL_FLOAT, 4, offsetof(vertex3d, col));
     
@@ -126,20 +157,21 @@ int WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdLine, int cmdSh
             #version 450 core
     
             layout (location=0) in vec3 inPos;
-            layout (location=1) in vec2 inUV;
+            layout (location=1) in vec3 inUV;
             layout (location=2) in vec3 inNor;
             layout (location=3) in vec4 inCol;
             
-            layout (location=0) uniform mat4 projview;
+            layout (location=0) uniform mat4 proj;
+            layout (location=1) uniform mat4 view;
             
             out gl_PerVertex { vec4 gl_Position; };
-            out vec2 uv;
+            out vec3 uv;
             out vec3 normal;
             out vec4 color;
             
             void main()
             {
-                gl_Position = projview * vec4(inPos, 1);
+                gl_Position = vec4(inPos, 1) * view * proj;
                 uv = inUV;
                  normal = inNor;
                 color = inCol;
@@ -149,17 +181,20 @@ int WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdLine, int cmdSh
         char fragShader[] = R"FSHADER(
             #version 450 core
     
-            in vec2 uv;
+            in vec3 uv;
             in vec3 normal;
             in vec4 color;
             
             layout (location=0)
             out vec4 outColor;
             
+layout (binding=0)
+            uniform sampler2DArray textureArray;
+            
             void main()
             {
-                vec4 weirdGradient = vec4(uv.x,uv.y,1,1);
-                outColor = color;
+                vec4 texelColor = texture(textureArray, uv);
+                outColor = texelColor * color;
             }
             )FSHADER";
         
@@ -173,83 +208,121 @@ int WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdLine, int cmdSh
     app.pass.scissor = hnRectMinMax({0,0}, win32.clientDim);
     app.pass.blendEnabled = true;
     app.pass.blendType = hnBLEND_DEFAULT;
-    app.pass.depthTestEnabled = false;
+    app.pass.depthTestEnabled = true;
     app.pass.depthTestType = hnLESS_EQUAL;
     
-    app.pass.uniformCount = 1;
+    app.pass.uniformCount = 2;
     app.pass.uniforms = hnPushArray(&app.permanent, app.pass.uniformCount, hnGpuBuffer);
+    
     app.pass.uniforms[0] = hnMakeUniformBuffer(app.renderer, app.shader.vShader, 0, sizeof(f32)*4*4);
     app.pass.uniforms[0].type = hnUNIFORM_MAT4FV;
+    app.pass.uniforms[1] = hnMakeUniformBuffer(app.renderer, app.shader.vShader, 1, sizeof(f32)*4*4);
+    app.pass.uniforms[1].type = hnUNIFORM_MAT4FV;
     
-    updateProjectionMatrix();
+    app.textureArray = hnMakeTexture2DArray(app.renderer, 1024, 1024, 32, hnNEAREST);
+    
+    app.font = hnInitFont(app.renderer, &app.textureArray, &app.fontSprite,
+                          "C:\\Windows\\Fonts\\arial.ttf",32);
+    
+    hnLoadTexture2DIntoArray(app.renderer, &app.textureArray, &app.white, "images/white.png", hnNEAREST);
+    hnLoadTexture2DIntoArray(app.renderer, &app.textureArray, &app.circle, "images/circle.png", hnNEAREST);
+    hnLoadTexture2DIntoArray(app.renderer, &app.textureArray, &app.atlas, "images/atlas.png", hnNEAREST);
+    
+    app.dirt = hnMakeSprite(app.atlas,64,{2,0},{3,1});
+    
+    glGenerateTextureMipmap(app.textureArray.handle);
+    
+    app.pass.textureUnit = 0;
+    app.pass.textureHandle = app.textureArray.handle;
     
     hnEndTempMemory(tempMem);
     
-    app.cam.pos = {0,0,10};
-    
+    app.cam.yaw = -90.0f;
     app.cam.pitch = 0;
-    app.cam.yaw = 0;
-    app.cam.roll = 0;
+    
+    app.cam.pos = {0,0,3};
+    app.cam.front = {0,0,-1};
+    app.cam.up = {0,1,0};
+    
+    app.entropy = hnRandomSeed(123);
+    
+    app.lastMouseP = win32.input.mouse.pos;
+    
+    v3 scale = v3{1,1,1};
+    f32 maxHeight = 16;
+    s32 chunkDim = 32;
+    for (s32 y = -chunkDim/2;
+         y < chunkDim/2;
+         ++y)
+    {
+        for (s32 x = -chunkDim/2;
+             x < chunkDim/2;
+             ++x)
+        {
+            v3 p = {x*scale.x, floorf(maxHeight*(f32)hnPerlin2D(x,y,0.1f,3)) , y*scale.y};
+            hnPushCubeIndexed(&app.vb, &app.ib, app.dirt, p, scale, hnGOLD);
+        }
+    }
+    
+    hnUploadGpuBuffer(app.renderer, &app.vb);
+    hnUploadGpuBuffer(app.renderer, &app.ib);
+    
     
     while (!app.renderer->shouldClose)
     {
         hnPrepareFrame(app.renderer, 0);
+        
+#if 0
         app.vb.index = 0;
         app.ib.index = 0;
+#endif
         
         hnMouse *mouse = &win32.input.mouse;
         hnKeyboard *key = &win32.input.keyboard;
         
         f32 dt = app.renderer->dt;
         
-        if (mouse->left.down && !app.dragging)
+        f32 speed = 0.1f;
+        
+        if (key->w.down)
         {
-            app.dragging = true;
-            app.lastMouseP = mouse->pos;
+            app.cam.pos += speed * app.cam.front;
         }
         
-        if (app.dragging && !mouse->left.down)
+        if (key->s.down)
         {
-            app.dragging = false;
+            app.cam.pos -= speed * app.cam.front;
         }
         
-        if (app.dragging)
+        if (key->a.down)
         {
-            v2 deltaP = mouse->pos - app.lastMouseP;
-            app.lastMouseP = mouse->pos;
-            
-            if (key->control.down)
-            {
-                app.cam.pos.z += dt * deltaP.y;
-            }
-            else
-            {
-                app.cam.yaw += dt * deltaP.x;
-                app.cam.pitch += dt * -deltaP.y;
-            }
+            app.cam.pos -= speed * normalize(cross(app.cam.front, app.cam.up));
+        }
+        
+        if (key->d.down)
+        {
+            app.cam.pos += speed * normalize(cross(app.cam.front, app.cam.up));
+        }
+        
+        v2 deltaP = mouse->pos - app.lastMouseP;
+        app.lastMouseP = mouse->pos;
+        
+        
+        f32 sensitivity = 10.0f;
+        app.cam.yaw += sensitivity * dt * deltaP.x;
+        app.cam.pitch -= sensitivity * dt * deltaP.y;
+        
+        if (app.cam.pitch > 89.0f)
+        {
+            app.cam.pitch = 89.0f;
+        }
+        else if (app.cam.pitch < -89.0f)
+        {
+            app.cam.pitch = -89.0f;
         }
         
         v2 dim = v2{64,64} + sinf((f32)app.time)*v2{128,128};
         
-        v3 scale = 0.2f*v3{1,1,1};
-        f32 margin = 0.1f;
-        
-        s32 chunkRadius = 2;
-        for (s32 y = -chunkRadius;
-             y < chunkRadius;
-             ++y)
-        {
-            for (s32 x = -chunkRadius;
-                 x < chunkRadius;
-                 ++x)
-            {
-                hnPushCubeIndexed(&app.vb, &app.ib, {}, {x*(scale.x+margin),y*(scale.y+margin),0}, scale, hnGOLD);
-                
-            }
-        }
-        
-        hnUploadGpuBuffer(app.renderer, &app.vb);
-        hnUploadGpuBuffer(app.renderer, &app.ib);
         
         
         updateProjectionMatrix();
