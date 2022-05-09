@@ -44,8 +44,10 @@ struct camera
 
 struct render_buffer
 {
+    b32 active;
     hnGpuBuffer vb;
     hnGpuBuffer ib;
+    
     render_buffer *freeNext;
 };
 
@@ -82,6 +84,8 @@ struct mcRenderer
 internal void
 freeChunkRenderBuffer(mcRenderer *r, render_buffer *buffer)
 {
+    buffer->active = false;
+    
     buffer->freeNext = r->chunkBufferFreeFirst;
     r->chunkBufferFreeFirst = buffer;
 }
@@ -89,16 +93,21 @@ freeChunkRenderBuffer(mcRenderer *r, render_buffer *buffer)
 internal render_buffer *
 makeChunkRenderBuffer(mcRenderer *r)
 {
+    assert(r->chunkBufferIndex < arrayCount(r->chunkBuffers));
+    
     if (r->chunkBufferFreeFirst == 0)
     {
         r->chunkBufferFreeFirst = r->chunkBuffers + r->chunkBufferIndex++;
     }
     
+    
     render_buffer *result = r->chunkBufferFreeFirst;
     r->chunkBufferFreeFirst = r->chunkBufferFreeFirst->freeNext;
     
+    result->active = true;
     result->vb.index = 0;
     result->ib.index = 0;
+    result->freeNext = 0;
     
     return result;
 }

@@ -88,6 +88,38 @@ updateDebugDisplay(void)
                         &app.renderer->ortho2dBuffer.vb, &app.renderer->ortho2dBuffer.ib,
                         cameraPosLabel, {0,(f32)(++debugLine)*16}, hnGOLD, 0, false, 1);
     
+    char chunkBufferFreeListCountLabel[256] = {};
+    u32 chunkBufferFreeListCount = 0;
+    for (render_buffer *c = app.renderer->chunkBufferFreeFirst;
+         c;
+         c = c->freeNext)
+    {
+        ++chunkBufferFreeListCount;
+    }
+    hnMakeIntLabel(chunkBufferFreeListCountLabel,sizeof(chunkBufferFreeListCountLabel),chunkBufferFreeListCount,"Chunk buffer free list count");
+    
+    hnPushStringIndexed(&app.renderer->font, &app.renderer->textureArray, 
+                        &app.renderer->ortho2dBuffer.vb, &app.renderer->ortho2dBuffer.ib,
+                        chunkBufferFreeListCountLabel, {0,(f32)(++debugLine)*16}, hnGOLD, 0, false, 1);
+    
+    
+    
+    char chunkFreeListCountLabel[256] = {};
+    u32 chunkFreeListCount = 0;
+    for (chunk *c = app.overworld.freeFirst;
+         c;
+         c = c->freeNext)
+    {
+        ++chunkFreeListCount;
+    }
+    hnMakeIntLabel(chunkFreeListCountLabel,sizeof(chunkFreeListCountLabel),chunkFreeListCount,"Chunk free list count");
+    
+    hnPushStringIndexed(&app.renderer->font, &app.renderer->textureArray, 
+                        &app.renderer->ortho2dBuffer.vb, &app.renderer->ortho2dBuffer.ib,
+                        chunkFreeListCountLabel, {0,(f32)(++debugLine)*16}, hnGOLD, 0, false, 1);
+    
+    
+    
     drawDtHistoryGraph({0,win32.clientDim.y-100},100);
     
     app.dtHistory[app.dtHistoryIndex++] = app.renderer->backend->dt;

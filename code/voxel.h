@@ -3,14 +3,17 @@
 #ifndef VOXEL_H
 #define VOXEL_H
 
-#define CHUNK_SIZE v3{16,1,16}
+#define CHUNK_SIZE v3{16,16,16}
 
 struct chunk
 {
     v3 p; // Integer coordinates
     u32 *voxels;
+    chunk *freePrev;
     chunk *freeNext;
+    
     chunk *nextInHash;
+    chunk *prevInHash;
     
     render_buffer *gpuBuffer;
 };
@@ -39,7 +42,7 @@ getChunkHashIndex(voxel_map *map, s32 x, s32 y, s32 z)
 inline s32
 getVoxelIndex(s32 x, s32 y, s32 z)
 {
-    s32 result = (s32)(z*CHUNK_SIZE.x*CHUNK_SIZE.y + y*CHUNK_SIZE.x + x);
+    s32 result = (s32)(y*CHUNK_SIZE.x*CHUNK_SIZE.z + z*CHUNK_SIZE.x + x);
     return result;
 }
 

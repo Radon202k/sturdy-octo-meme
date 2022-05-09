@@ -3,7 +3,21 @@ freeChunk(mcRenderer *r, voxel_map *map, chunk *c)
 {
     freeChunkRenderBuffer(r, c->gpuBuffer);
     
-    c->freeNext = map->freeFirst;
+    c->gpuBuffer = 0;
+    
+    // Add chunk to free list
+    if (map->freeFirst)
+    {
+        map->freeFirst->freePrev = c;
+        c->freeNext = map->freeFirst;
+    }
+    else
+    {
+        c->freeNext = 0;
+    }
+    
+    c->freePrev = 0;
+    
     map->freeFirst = c;
 }
 
@@ -19,61 +33,55 @@ makeChunk(mcRenderer *r, voxel_map *map, s32 x, s32 y, s32 z)
     }
     
     u32 hashIndex = getChunkHashIndex(map, x, y, z);
-    map->hash[hashIndex] = map->freeFirst;
+    
+    chunk *result = map->freeFirst;
     map->freeFirst = map->freeFirst->freeNext;
     
-    chunk *result = map->hash[hashIndex];
+    // Remove chunk from hash table in case this came from the free list
+    if (result->prevInHash)
+    {
+        result->prevInHash->nextInHash = result->nextInHash;
+    }
+    else
+    {
+        u32 oldHashIndex = getChunkHashIndex(map, (s32)result->p.x, (s32)result->p.y, (s32)result->p.z);
+        if (map->hash[oldHashIndex] == result)
+        {
+            map->hash[oldHashIndex] = 0;
+        }
+    }
     
-    // TODO: Search free list to remove this from it if it is there.
+    if (result->nextInHash)
+    {
+        result->nextInHash->prevInHash = result->prevInHash;
+    }
+    result->prevInHash = 0;
+    result->nextInHash = 0;
     
-    result->gpuBuffer = makeChunkRenderBuffer(r);
+    
+    // Put in the head of the hash chain
+    if (map->hash[hashIndex])
+    {
+        map->hash[hashIndex]->prevInHash = result;
+    }
+    
+    result->nextInHash = map->hash[hashIndex];
+    map->hash[hashIndex] = result;
+    
+    if (!result->gpuBuffer)
+    {
+        // Make vertex and index buffers
+        result->gpuBuffer = makeChunkRenderBuffer(r);
+    }
+    else
+    {
+        result->gpuBuffer->active = true;
+    }
     
     result->p = v3{(f32)x,(f32)y,(f32)z};
     
     result->freeNext = 0;
-    result->nextInHash = 0;
-    
-    f32 maxHeight = 64;
-    for (s32 voxelZ = 0;
-         voxelZ < CHUNK_SIZE.z;
-         ++voxelZ)
-    {
-        for (s32 voxelY = 0;
-             voxelY < CHUNK_SIZE.y;
-             ++voxelY)
-        {
-            for (s32 voxelX = 0;
-                 voxelX < CHUNK_SIZE.x;
-                 ++voxelX)
-            {
-                u32 cubeMaterial = 1;
-                
-                f32 compX = (f32)(x*CHUNK_SIZE.x + voxelX);
-                f32 compY = (f32)(y*CHUNK_SIZE.y + voxelY);
-                f32 compZ = (f32)(z*CHUNK_SIZE.z + voxelZ);
-                
-                f32 height = floorf(maxHeight*(f32)hnPerlin2D(compX,compZ,0.05f,6));
-                
-                if (compZ <= height)
-                {
-                    if (compZ > maxHeight/1.5f)
-                    {
-                        cubeMaterial = 3;
-                    }
-                    else if (compZ > maxHeight/2)
-                    {
-                        cubeMaterial = 2;
-                    }
-                    
-                    setVoxel(result, voxelX, voxelY, voxelZ, cubeMaterial);
-                }
-                else
-                {
-                    setVoxel(result, voxelX, voxelY, voxelZ, 0);
-                }
-            }
-        }
-    }
+    result->freePrev = 0;
     
     return result;
 }
@@ -86,30 +94,59 @@ getChunk(mcRenderer *r, voxel_map *map, s32 x, s32 y, s32 z)
     
     if (result)
     {
-        chunk *lastValidChunkInHash = result;
+        // Advance through the hash list until find a chunk with the right pos
         while (result && ((result->p.x == x && result->p.y == y && result->p.z == z) == false))
         {
-            lastValidChunkInHash = result;
             result = result->nextInHash;
         }
         
+        // If found the chunk
         if (result)
         {
             assert((result->p.x == x && result->p.y == y && result->p.z == z));
+            
+            chunk *c = map->freeFirst;
+            while (c)
+            {
+                if (c->p == result->p)
+                {
+                    if (c->freePrev)
+                    {
+                        c->freePrev->freeNext = c->freeNext;
+                    }
+                    else
+                    {
+                        if (map->freeFirst == c)
+                        {
+                            map->freeFirst = 0;
+                        }
+                    }
+                    
+                    if (c->freeNext)
+                    {
+                        c->freeNext->freePrev = c->freePrev;
+                    }
+                    c->freePrev = 0;
+                    c->freeNext = 0;
+                    
+                    
+                    break;
+                }
+                
+                c = c->freeNext;
+            }
         }
         else
         {
             // Didn't find the chunk, need to add a new chunk in the hash chain
-            chunk *newChunk = makeChunk(r, map, x, 0, z);
-            lastValidChunkInHash->nextInHash = newChunk;
+            chunk *newChunk = makeChunk(r, map, x, y, z);
             result = newChunk;
         }
     }
     else
     {
-        result = makeChunk(r, map, x, y, 0);
+        result = makeChunk(r, map, x, y, z);
     }
-    
     
     return result;
 }
@@ -137,9 +174,9 @@ hasSpaceAround(chunk *c, s32 x, s32 y, s32 z)
     b32 result = false;
     
     // If it is in the boundary of the chunk
-    if ((x == 0 || x == CHUNK_SIZE.x) ||
-        (y == 0 || y == CHUNK_SIZE.y) ||
-        (z == 0 || z == CHUNK_SIZE.z))
+    if ((x == 0 || x == CHUNK_SIZE.x-1) ||
+        (y == 0 || y == CHUNK_SIZE.y-1) ||
+        (z == 0 || z == CHUNK_SIZE.z-1))
     {
         result = true;
     }
@@ -177,8 +214,63 @@ hasSpaceAround(chunk *c, s32 x, s32 y, s32 z)
 internal void
 makeChunksInRange(mcRenderer *r, voxel_map *map, v3 min, v3 max)
 {
-    // TODO: Y Layers!
+    // First generate all the cubes
+    f32 maxHeight = 64;
     s32 chunkY = 0;
+    for (s32 chunkX = (s32)min.x;
+         chunkX < max.x;
+         ++chunkX)
+    {
+        for (s32 chunkZ = (s32)min.z;
+             chunkZ < max.z;
+             ++chunkZ)
+        {
+            chunk *c = getChunk(r, map, chunkX, 0, chunkZ);
+            
+            for (s32 voxelY = 0;
+                 voxelY < CHUNK_SIZE.y;
+                 ++voxelY)
+            {
+                for (s32 voxelX = 0;
+                     voxelX < CHUNK_SIZE.x;
+                     ++voxelX)
+                {
+                    for (s32 voxelZ = 0;
+                         voxelZ < CHUNK_SIZE.z;
+                         ++voxelZ)
+                    {
+                        u32 cubeMaterial = 1;
+                        
+                        f32 compX = (f32)(chunkX*CHUNK_SIZE.x + voxelX);
+                        f32 compY = (f32)(chunkY*CHUNK_SIZE.y + voxelY);
+                        f32 compZ = (f32)(chunkZ*CHUNK_SIZE.z + voxelZ);
+                        
+                        f32 height = floorf(maxHeight*(f32)hnPerlin2D(compX,compZ,0.05f,6));
+                        
+                        if (compY <= height)
+                        {
+                            if (compZ > maxHeight/1.5f)
+                            {
+                                cubeMaterial = 3;
+                            }
+                            else if (compZ > maxHeight/2)
+                            {
+                                cubeMaterial = 2;
+                            }
+                            
+                            setVoxel(c, voxelX, voxelY, voxelZ, cubeMaterial);
+                        }
+                        else
+                        {
+                            setVoxel(c, voxelX, voxelY, voxelZ, 0);
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    // Then push only the cubes that should be drawn
     for (s32 chunkX = (s32)min.x;
          chunkX < max.x;
          ++chunkX)
@@ -193,17 +285,17 @@ makeChunksInRange(mcRenderer *r, voxel_map *map, v3 min, v3 max)
             c->gpuBuffer->ib.index = 0;
             
             v3 scale = v3{1,1,1};
-            for (s32 z = 0;
-                 z < CHUNK_SIZE.z;
-                 ++z)
+            for (s32 y = 0;
+                 y < CHUNK_SIZE.y;
+                 ++y)
             {
-                for (s32 y = 0;
-                     y < CHUNK_SIZE.y;
-                     ++y)
+                for (s32 x = 0;
+                     x < CHUNK_SIZE.x;
+                     ++x)
                 {
-                    for (s32 x = 0;
-                         x < CHUNK_SIZE.x;
-                         ++x)
+                    for (s32 z = 0;
+                         z < CHUNK_SIZE.z;
+                         ++z)
                     {
                         u32 material = getVoxel(c, x, y, z);
                         
@@ -245,7 +337,6 @@ makeChunksInRange(mcRenderer *r, voxel_map *map, v3 min, v3 max)
             hnUploadGpuBuffer(r->backend, &c->gpuBuffer->ib);
         }
     }
-    
 }
 
 internal void
@@ -338,7 +429,7 @@ updateChunkLoading(mcRenderer *r, voxel_map *map, v3 camP)
             outMax.z = outMin.z + 0.25f*map->viewDist.z;
         }
         
-        // freeChunksInRange(map, outMin, outMax);
+        freeChunksInRange(r, map, outMin, outMax);
         makeChunksInRange(r, map, inMin, inMax);
     }
 }

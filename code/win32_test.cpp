@@ -64,7 +64,7 @@ initWorld(void)
     app.overworld.permanent = &app.permanent;
     memset(app.overworld.hash, 0, sizeof(chunk *) * arrayCount(app.overworld.hash));
     
-    app.overworld.viewDist = {4,1,4};
+    app.overworld.viewDist = {5,1,5};
 }
 
 internal void
@@ -167,13 +167,18 @@ int WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdLine, int cmdSh
         
         updateProjectionMatrices(app.renderer, &app.cam);
         
+        u32 passIndex = 0;
         for (u32 chunkBufferIndex = 0;
              chunkBufferIndex < app.renderer->chunkBufferIndex;
              ++chunkBufferIndex)
         {
             render_buffer *buffer = app.renderer->chunkBuffers + chunkBufferIndex;
-            hnExecuteRenderPass(app.renderer->backend, &app.renderer->cubes, 
-                                &buffer->vb, &buffer->ib, false, {});
+            if (buffer->active)
+            {
+                b32 clear = (passIndex++ == 0);
+                hnExecuteRenderPass(app.renderer->backend, &app.renderer->cubes, 
+                                    &buffer->vb, &buffer->ib, clear, hnDIMGRAY);
+            }
         }
         
         hnExecuteRenderPass(app.renderer->backend, &app.renderer->ortho2d, 
