@@ -51,7 +51,7 @@ drawDtHistoryGraph(v2 p, f32 height)
                 u32 debugLine = 0;
                 
                 hnPushStringIndexed(&app.renderer->font, &app.renderer->textureArray, &
-                                    app.renderer->ortho2d.vb, &app.renderer->ortho2d.ib,
+                                    app.renderer->ortho2dBuffer.vb, &app.renderer->ortho2dBuffer.ib,
                                     dtLabel, toV3(p,0) + barP, hnCRIMSON, 0, false, 1);
                 
             }
@@ -61,7 +61,7 @@ drawDtHistoryGraph(v2 p, f32 height)
             }
         }
         
-        hnPushSpriteIndexed(&app.renderer->ortho2d.vb, &app.renderer->ortho2d.ib, 
+        hnPushSpriteIndexed(&app.renderer->ortho2dBuffer.vb, &app.renderer->ortho2dBuffer.ib, 
                             app.renderer->white, toV3(p,0) + barP, barDim, color, 0, false);
     }
     
@@ -77,13 +77,15 @@ updateDebugDisplay(void)
     
     u32 debugLine = 0;
     
-    hnPushStringIndexed(&app.renderer->font, &app.renderer->textureArray, &app.renderer->ortho2d.vb, &app.renderer->ortho2d.ib,
+    hnPushStringIndexed(&app.renderer->font, &app.renderer->textureArray, 
+                        &app.renderer->ortho2dBuffer.vb, &app.renderer->ortho2dBuffer.ib,
                         dtLabel, {0,(f32)(++debugLine)*16}, hnGOLD, 0, false, 1);
     
     char cameraPosLabel[256] = {};
     hnMakeV3Label(cameraPosLabel,sizeof(cameraPosLabel),app.cam.pos,"Camera world pos");
     
-    hnPushStringIndexed(&app.renderer->font, &app.renderer->textureArray, &app.renderer->ortho2d.vb, &app.renderer->ortho2d.ib,
+    hnPushStringIndexed(&app.renderer->font, &app.renderer->textureArray, 
+                        &app.renderer->ortho2dBuffer.vb, &app.renderer->ortho2dBuffer.ib,
                         cameraPosLabel, {0,(f32)(++debugLine)*16}, hnGOLD, 0, false, 1);
     
     drawDtHistoryGraph({0,win32.clientDim.y-100},100);

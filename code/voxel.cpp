@@ -1,18 +1,14 @@
 internal void
-freeLoadedChunksAtOnce(voxel_map *map)
+freeChunk(mcRenderer *r, voxel_map *map, chunk *c)
 {
-    chunk *c = map->loadedFirst;
-    while (c)
-    {
-        freeChunk(map, c);
-        c = c->loadedNext;
-    }
-    map->loadedFirst = 0;
+    freeChunkRenderBuffer(r, c->gpuBuffer);
     
+    c->freeNext = map->freeFirst;
+    map->freeFirst = c;
 }
 
 internal chunk *
-generateChunk(voxel_map *map, s32 x, s32 y, s32 z)
+makeChunk(mcRenderer *r, voxel_map *map, s32 x, s32 y, s32 z)
 {
     if (!map->freeFirst)
     {
@@ -28,12 +24,13 @@ generateChunk(voxel_map *map, s32 x, s32 y, s32 z)
     
     chunk *result = map->hash[hashIndex];
     
-    result->x = x;
-    result->y = y;
-    result->z = z;
+    // TODO: Search free list to remove this from it if it is there.
+    
+    result->gpuBuffer = makeChunkRenderBuffer(r);
+    
+    result->p = v3{(f32)x,(f32)y,(f32)z};
     
     result->freeNext = 0;
-    result->loadedNext = 0;
     result->nextInHash = 0;
     
     f32 maxHeight = 64;
@@ -55,9 +52,9 @@ generateChunk(voxel_map *map, s32 x, s32 y, s32 z)
                 f32 compY = (f32)(y*CHUNK_SIZE.y + voxelY);
                 f32 compZ = (f32)(z*CHUNK_SIZE.z + voxelZ);
                 
-                noise_hash_node *height = getNoise(map, (s32)compX, (s32)compY);
+                f32 height = floorf(maxHeight*(f32)hnPerlin2D(compX,compZ,0.05f,6));
                 
-                if (compZ <= height->value)
+                if (compZ <= height)
                 {
                     if (compZ > maxHeight/1.5f)
                     {
@@ -82,7 +79,7 @@ generateChunk(voxel_map *map, s32 x, s32 y, s32 z)
 }
 
 inline chunk *
-getChunk(voxel_map *map, s32 x, s32 y, s32 z)
+getChunk(mcRenderer *r, voxel_map *map, s32 x, s32 y, s32 z)
 {
     u32 hashIndex = getChunkHashIndex(map, x, y, z);
     chunk *result = map->hash[hashIndex];
@@ -90,7 +87,7 @@ getChunk(voxel_map *map, s32 x, s32 y, s32 z)
     if (result)
     {
         chunk *lastValidChunkInHash = result;
-        while (result && ((result->x == x && result->y == y && result->z == z) == false))
+        while (result && ((result->p.x == x && result->p.y == y && result->p.z == z) == false))
         {
             lastValidChunkInHash = result;
             result = result->nextInHash;
@@ -98,25 +95,40 @@ getChunk(voxel_map *map, s32 x, s32 y, s32 z)
         
         if (result)
         {
-            assert((result->x == x && result->y == y && result->z == z));
+            assert((result->p.x == x && result->p.y == y && result->p.z == z));
         }
         else
         {
             // Didn't find the chunk, need to add a new chunk in the hash chain
-            chunk *newChunk = generateChunk(map, x, y, 0);
+            chunk *newChunk = makeChunk(r, map, x, 0, z);
             lastValidChunkInHash->nextInHash = newChunk;
             result = newChunk;
         }
     }
     else
     {
-        result = generateChunk(map, x, y, 0);
+        result = makeChunk(r, map, x, y, 0);
     }
     
-    result->loadedNext = map->loadedFirst;
-    map->loadedFirst = result;
     
     return result;
+}
+
+internal void
+freeChunksInRange(mcRenderer *r, voxel_map *map, v3 min, v3 max)
+{
+    for (s32 chunkX = (s32)min.x;
+         chunkX < max.x;
+         ++chunkX)
+    {
+        for (s32 chunkZ = (s32)min.z;
+             chunkZ < max.z;
+             ++chunkZ)
+        {
+            chunk *c = getChunk(r, map, chunkX, 0, chunkZ);
+            freeChunk(r, map, c);
+        }
+    }
 }
 
 internal b32
@@ -125,7 +137,9 @@ hasSpaceAround(chunk *c, s32 x, s32 y, s32 z)
     b32 result = false;
     
     // If it is in the boundary of the chunk
-    if ((x == 0 || x == 7) || (y == 0 || y == 7) || (z == 0 || z == 7))
+    if ((x == 0 || x == CHUNK_SIZE.x) ||
+        (y == 0 || y == CHUNK_SIZE.y) ||
+        (z == 0 || z == CHUNK_SIZE.z))
     {
         result = true;
     }
@@ -147,7 +161,7 @@ hasSpaceAround(chunk *c, s32 x, s32 y, s32 z)
         {
             result = true;
         }
-        else if (getVoxel(c, x, y, z-1) == 0) // Font
+        else if (getVoxel(c, x, y, z-1) == 0) // Front
         {
             result = true;
         }
@@ -160,28 +174,23 @@ hasSpaceAround(chunk *c, s32 x, s32 y, s32 z)
     return result;
 }
 
-
 internal void
-generateChunksAroundP(mcRenderer *r, voxel_map *map, v3 center, f32 dist)
+makeChunksInRange(mcRenderer *r, voxel_map *map, v3 min, v3 max)
 {
-    r->cubes.vb.index = 0;
-    r->cubes.ib.index = 0;
-    
-    s32 centerChunkX = (s32)(center.x / CHUNK_SIZE.x);
-    s32 centerChunkY = (s32)(center.z / CHUNK_SIZE.y);
-    
-    freeLoadedChunksAtOnce(map);
-    
-    // TODO: Z Layers!
-    for (s32 chunkX = centerChunkX - (s32)dist;
-         chunkX < centerChunkX + dist;
+    // TODO: Y Layers!
+    s32 chunkY = 0;
+    for (s32 chunkX = (s32)min.x;
+         chunkX < max.x;
          ++chunkX)
     {
-        for (s32 chunkY = centerChunkY - (s32)dist;
-             chunkY < centerChunkY + dist;
-             ++chunkY)
+        for (s32 chunkZ = (s32)min.z;
+             chunkZ < max.z;
+             ++chunkZ)
         {
-            chunk *c = getChunk(map, chunkX, chunkY, 0);
+            chunk *c = getChunk(r, map, chunkX, 0, chunkZ);
+            
+            c->gpuBuffer->vb.index = 0;
+            c->gpuBuffer->ib.index = 0;
             
             v3 scale = v3{1,1,1};
             for (s32 z = 0;
@@ -200,13 +209,13 @@ generateChunksAroundP(mcRenderer *r, voxel_map *map, v3 center, f32 dist)
                         
                         f32 compX = chunkX*scale.x*CHUNK_SIZE.x + x;
                         f32 compY = chunkY*scale.y*CHUNK_SIZE.y + y;
-                        f32 compZ = (f32)z;
+                        f32 compZ = chunkZ*scale.z*CHUNK_SIZE.z + z;
                         
                         v3 p = 
                         {
                             compX*scale.x,
+                            compY*scale.y,
                             compZ*scale.z,
-                            compY*scale.y
                         };
                         
                         hnSprite sprite = r->white;
@@ -226,29 +235,110 @@ generateChunksAroundP(mcRenderer *r, voxel_map *map, v3 center, f32 dist)
                         
                         if (material && hasSpaceAround(c, x, y, z))
                         {
-                            hnPushCubeIndexed(&r->cubes.vb, &r->cubes.ib, sprite, p, scale, hnWHITE);
+                            hnPushCubeIndexed(&c->gpuBuffer->vb, &c->gpuBuffer->ib, sprite, p, scale, hnWHITE);
                         }
                     }
                 }
             }
+            
+            hnUploadGpuBuffer(r->backend, &c->gpuBuffer->vb);
+            hnUploadGpuBuffer(r->backend, &c->gpuBuffer->ib);
         }
     }
     
-    hnUploadGpuBuffer(r->backend, &r->cubes.vb);
-    hnUploadGpuBuffer(r->backend, &r->cubes.ib);
 }
 
 internal void
 updateChunkLoading(mcRenderer *r, voxel_map *map, v3 camP)
 {
-    f32 xDiff = camP.x - map->currentCenter.x;
-    f32 zDiff = camP.z - map->currentCenter.z;
+    v3 cameraChunkP = floor(camP / CHUNK_SIZE);
     
-    if (absolute(xDiff) > map->maxDistFromCurrentCenter.x ||
-        absolute(zDiff) > map->maxDistFromCurrentCenter.z)
+    if ((map->currentCenter == map->oldCenter) && (map->currentCenter == v3{0,0,0}))
     {
-        map->currentCenter = camP;
+        // First time, load everything
+        map->oldCenter = cameraChunkP;
+        map->currentCenter = cameraChunkP;
         
-        generateChunksAroundP(r, map, camP, map->viewDist);
+        v3 inMin = map->currentCenter - 0.5f*map->viewDist;
+        v3 inMax = map->currentCenter + 0.5f*map->viewDist;
+        makeChunksInRange(r, map, inMin, inMax);
+    }
+    else if (absolute(cameraChunkP.x - map->currentCenter.x) >= (0.25f*map->viewDist.x) ||
+             absolute(cameraChunkP.z - map->currentCenter.z) >= (0.25f*map->viewDist.z))
+    {
+        // Unload and load only the chunks around it
+        map->oldCenter = map->currentCenter;
+        map->currentCenter = cameraChunkP;
+        
+        v3 oldMin = map->oldCenter - 0.5f*map->viewDist;
+        v3 oldMax = map->oldCenter + 0.5f*map->viewDist;
+        v3 newMin = map->currentCenter - 0.5f*map->viewDist;
+        v3 newMax = map->currentCenter + 0.5f*map->viewDist;
+        
+        v3 delta = map->currentCenter - map->oldCenter;
+        
+        v3 inMin = {};
+        v3 inMax = {};
+        v3 outMin = {};
+        v3 outMax = {};
+        
+        // X
+        if (delta.x > 0) 
+        {
+            inMin.x = oldMax.x;
+            outMin.x = oldMin.x;
+        }
+        else if (delta.x < 0)
+        {
+            inMin.x = newMin.x;
+            outMin.x = newMax.x;
+        }
+        else
+        {
+            inMin.x = newMin.x;
+            outMin.x = newMin.x;
+        }
+        
+        if (delta.x == 0)
+        {
+            inMax.x = inMin.x + map->viewDist.x;
+            outMax.x = outMin.x + map->viewDist.x;
+        }
+        else
+        {
+            inMax.x = inMin.x + 0.25f*map->viewDist.x;
+            outMax.x = outMin.x + 0.25f*map->viewDist.x;
+        }
+        
+        // Z
+        if (delta.z > 0) 
+        {
+            inMin.z = oldMax.z;
+            outMin.z = oldMin.z;
+        }
+        else if (delta.z < 0)
+        {
+            inMin.z = newMin.z;
+            outMin.z = newMax.z;
+        }
+        else
+        {
+            inMin.z = newMin.z;
+            outMin.z = newMin.z;
+        }
+        
+        if (delta.z == 0)
+        {
+            inMax.z = inMin.z + map->viewDist.z;
+            outMax.z = outMin.z + map->viewDist.z;
+        }
+        else
+        {
+            inMax.z = inMin.z + 0.25f*map->viewDist.z;
+            outMax.z = outMin.z + 0.25f*map->viewDist.z;
+        }
+        
+        // freeChunksInRange(map, outMin, outMax);
+        makeChunksInRange(r, map, inMin, inMax);
     }
 }

@@ -3,43 +3,28 @@
 #ifndef VOXEL_H
 #define VOXEL_H
 
-#define CHUNK_SIZE v3{16,16,64}
+#define CHUNK_SIZE v3{16,1,16}
 
 struct chunk
 {
-    s32 x;
-    s32 y;
-    s32 z;
-    
+    v3 p; // Integer coordinates
     u32 *voxels;
     chunk *freeNext;
-    chunk *loadedNext;
     chunk *nextInHash;
-};
-
-struct noise_hash_node
-{
-    s32 x;
-    s32 y;
-    f32 value;
-    noise_hash_node *nextInHash;
-    noise_hash_node *freeNext;
+    
+    render_buffer *gpuBuffer;
 };
 
 struct voxel_map
 {
     hnMandala *permanent;
     
-    chunk *hash[2048];
+    chunk *hash[128];
     chunk *freeFirst;
-    chunk *loadedFirst;
     
-    noise_hash_node *noiseHash[4096];
-    noise_hash_node *noiseHashFreeFirst;
-    
-    f32 viewDist;
-    v3 currentCenter; // For chunk loading
-    v3 maxDistFromCurrentCenter;
+    v3 viewDist; // Integer chunk units
+    v3 oldCenter; // Integer chunk coordinates
+    v3 currentCenter; // Integer chunk coordinates
 };
 
 inline u32
@@ -72,17 +57,5 @@ setVoxel(chunk *c, s32 x, s32 y, s32 z, u32 value)
     s32 index = getVoxelIndex(x, y, z);
     c->voxels[index] = value;
 }
-
-internal void
-freeChunk(voxel_map *map, chunk *c)
-{
-    c->freeNext = map->freeFirst;
-    map->freeFirst = c;
-    
-    c->loadedNext = 0;
-    c->nextInHash = 0;
-    
-}
-
 
 #endif //VOXEL_H

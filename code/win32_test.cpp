@@ -1,6 +1,5 @@
 #include "renderer.h"
 #include "voxel.h"
-#include "noise.h"
 
 #include "renderer.cpp"
 #include "voxel.cpp"
@@ -44,7 +43,8 @@ global globals app;
 internal void
 hnResizeCallback(void)
 {
-    app.renderer->cubes.pass.scissor = hnRectMinMax({0,0},win32.clientDim);
+    app.renderer->cubes.scissor = hnRectMinMax({0,0},win32.clientDim);
+    app.renderer->ortho2d.scissor = hnRectMinMax({0,0},win32.clientDim);
 }
 
 internal void
@@ -64,13 +64,7 @@ initWorld(void)
     app.overworld.permanent = &app.permanent;
     memset(app.overworld.hash, 0, sizeof(chunk *) * arrayCount(app.overworld.hash));
     
-    app.overworld.viewDist = 4;
-    app.overworld.currentCenter = app.cam.pos;
-    app.overworld.maxDistFromCurrentCenter = CHUNK_SIZE;
-    
-    generateNoise2DAroundP(&app.overworld, app.cam.pos, app.overworld.viewDist, 64);
-    
-    generateChunksAroundP(app.renderer, &app.overworld, app.cam.pos, app.overworld.viewDist);
+    app.overworld.viewDist = {4,1,4};
 }
 
 internal void
@@ -161,19 +155,29 @@ int WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdLine, int cmdSh
     {
         hnPrepareFrame(app.renderer->backend, 0);
         
-        app.renderer->ortho2d.ib.index = 0;
-        app.renderer->ortho2d.vb.index = 0;
+        app.renderer->ortho2dBuffer.ib.index = 0;
+        app.renderer->ortho2dBuffer.vb.index = 0;
         
         updateWorld();
         
         updateDebugDisplay();
         
-        hnUploadGpuBuffer(app.renderer->backend, &app.renderer->ortho2d.vb);
-        hnUploadGpuBuffer(app.renderer->backend, &app.renderer->ortho2d.ib);
+        hnUploadGpuBuffer(app.renderer->backend, &app.renderer->ortho2dBuffer.vb);
+        hnUploadGpuBuffer(app.renderer->backend, &app.renderer->ortho2dBuffer.ib);
         
         updateProjectionMatrices(app.renderer, &app.cam);
-        hnExecuteRenderPass(app.renderer->backend, &app.renderer->cubes.pass, &app.renderer->cubes.vb, &app.renderer->cubes.ib, true, hnDIMGRAY);
-        hnExecuteRenderPass(app.renderer->backend, &app.renderer->ortho2d.pass, &app.renderer->ortho2d.vb, &app.renderer->ortho2d.ib, false, {});
+        
+        for (u32 chunkBufferIndex = 0;
+             chunkBufferIndex < app.renderer->chunkBufferIndex;
+             ++chunkBufferIndex)
+        {
+            render_buffer *buffer = app.renderer->chunkBuffers + chunkBufferIndex;
+            hnExecuteRenderPass(app.renderer->backend, &app.renderer->cubes, 
+                                &buffer->vb, &buffer->ib, false, {});
+        }
+        
+        hnExecuteRenderPass(app.renderer->backend, &app.renderer->ortho2d, 
+                            &app.renderer->ortho2dBuffer.vb, &app.renderer->ortho2dBuffer.ib, false, {});
         
         hnPresentFrame(app.renderer->backend, 0);
     }

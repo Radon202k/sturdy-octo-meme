@@ -25,12 +25,12 @@ updateProjectionMatrices(mcRenderer *r, camera *cam)
     mat4x4_inv proj = hnPerspectiveProjection(ar, focalLength, 0.1f, 1000.0f);
     mat4x4 view = cameraViewMatrix(cam);
     
-    memcpy((u8 *)r->cubes.pass.uniforms[0].data, proj.forward.e, sizeof(proj.forward));
-    memcpy((u8 *)r->cubes.pass.uniforms[1].data, view.e, sizeof(view));
+    memcpy((u8 *)r->cubes.uniforms[0].data, proj.forward.e, sizeof(proj.forward));
+    memcpy((u8 *)r->cubes.uniforms[1].data, view.e, sizeof(view));
     
     // 2d orthographic projection (pixel top down)
     mat4x4_inv ortho = hnOrthographicProjection(win32.clientDim);
-    memcpy((u8 *)r->ortho2d.pass.uniforms[0].data, ortho.forward.e, sizeof(ortho.forward));
+    memcpy((u8 *)r->ortho2d.uniforms[0].data, ortho.forward.e, sizeof(ortho.forward));
 }
 
 internal void
@@ -56,20 +56,32 @@ initRenderer(hnMandala *permanent, hnMandala *temporary)
     r->backend = hnInitRenderer(permanent, temporary, 800, 600, "Hello, World!");
     // glClipControl(GL_LOWER_LEFT, GL_ZERO_TO_ONE);
     
-    r->cubes.vb = hnMakeVertexBuffer(r->backend, megabytes(512), sizeof(f32)*13);
-    r->cubes.ib = hnMakeIndexBuffer(r->backend, megabytes(128));
+    // IMPORTANT: This uses about 400 mb of gpu memory as of now
+    // 16x16x16x52x24=5.12mb per chunk (CHUNK_SIZE*sizeof(f32)*13*vertexCount)
+    // 128 chunk hash = 655.36mb + 75.5mb (for index buffer) of maximum Gpu memory
+    // 128 hash size may allow for a view dist of 11x11 with minimum hash collisions.
     
-    hnSetInputLayout(&r->cubes.vb, 0, GL_FLOAT, 3, offsetof(vertex3d, pos));
-    hnSetInputLayout(&r->cubes.vb, 1, GL_FLOAT, 3, offsetof(vertex3d, uv));
-    hnSetInputLayout(&r->cubes.vb, 2, GL_FLOAT, 3, offsetof(vertex3d, nor));
-    hnSetInputLayout(&r->cubes.vb, 3, GL_FLOAT, 4, offsetof(vertex3d, col));
+    for (u32 chunkBufferIndex = 0;
+         chunkBufferIndex < arrayCount(r->chunkBuffers);
+         ++chunkBufferIndex)
+    {
+        render_buffer *chunkBuffer = r->chunkBuffers + chunkBufferIndex;
+        
+        chunkBuffer->vb = hnMakeVertexBuffer(r->backend, (u32)megabytes(5.12f), sizeof(f32)*13); 
+        chunkBuffer->ib = hnMakeIndexBuffer(r->backend, kilobytes(590));
+        
+        hnSetInputLayout(&chunkBuffer->vb, 0, GL_FLOAT, 3, offsetof(vertex3d, pos));
+        hnSetInputLayout(&chunkBuffer->vb, 1, GL_FLOAT, 3, offsetof(vertex3d, uv));
+        hnSetInputLayout(&chunkBuffer->vb, 2, GL_FLOAT, 3, offsetof(vertex3d, nor));
+        hnSetInputLayout(&chunkBuffer->vb, 3, GL_FLOAT, 4, offsetof(vertex3d, col));
+    }
     
-    r->ortho2d.vb = hnMakeVertexBuffer(r->backend, megabytes(4), sizeof(f32)*10);
-    r->ortho2d.ib = hnMakeIndexBuffer(r->backend, megabytes(1));
+    r->ortho2dBuffer.vb = hnMakeVertexBuffer(r->backend, megabytes(4), sizeof(f32)*10);
+    r->ortho2dBuffer.ib = hnMakeIndexBuffer(r->backend, megabytes(1));
     
-    hnSetInputLayout(&r->ortho2d.vb, 0, GL_FLOAT, 3, offsetof(vertex2d, pos));
-    hnSetInputLayout(&r->ortho2d.vb, 1, GL_FLOAT, 3, offsetof(vertex2d, uv));
-    hnSetInputLayout(&r->ortho2d.vb, 2, GL_FLOAT, 4, offsetof(vertex2d, col));
+    hnSetInputLayout(&r->ortho2dBuffer.vb, 0, GL_FLOAT, 3, offsetof(vertex2d, pos));
+    hnSetInputLayout(&r->ortho2dBuffer.vb, 1, GL_FLOAT, 3, offsetof(vertex2d, uv));
+    hnSetInputLayout(&r->ortho2dBuffer.vb, 2, GL_FLOAT, 4, offsetof(vertex2d, col));
     
     {
         char vertexShader[] = R"VSHADER(
@@ -180,41 +192,41 @@ outColor = color * texelColor;
         r->shader2d = hnMakeShader(r->backend, vertexShader, fragShader);
     }
     
-    r->cubes.pass = {};
-    r->cubes.pass.primitive = hnTRIANGLES;
-    r->cubes.pass.shader = &r->shader3d;
-    r->cubes.pass.target = r->backend->defaultTarget;
-    r->cubes.pass.scissor = hnRectMinMax({0,0}, win32.clientDim);
-    r->cubes.pass.blendEnabled = true;
-    r->cubes.pass.blendType = hnPREMULTIPLIED_ALPHA;
-    r->cubes.pass.depthTestEnabled = true;
-    r->cubes.pass.depthTestType = hnLESS_EQUAL;
+    r->cubes = {};
+    r->cubes.primitive = hnTRIANGLES;
+    r->cubes.shader = &r->shader3d;
+    r->cubes.target = r->backend->defaultTarget;
+    r->cubes.scissor = hnRectMinMax({0,0}, win32.clientDim);
+    r->cubes.blendEnabled = true;
+    r->cubes.blendType = hnPREMULTIPLIED_ALPHA;
+    r->cubes.depthTestEnabled = true;
+    r->cubes.depthTestType = hnLESS_EQUAL;
     
-    r->cubes.pass.uniformCount = 2;
-    r->cubes.pass.uniforms = hnPushArray(permanent, r->cubes.pass.uniformCount, hnGpuBuffer);
+    r->cubes.uniformCount = 2;
+    r->cubes.uniforms = hnPushArray(permanent, r->cubes.uniformCount, hnGpuBuffer);
     
-    r->cubes.pass.uniforms[0] = hnMakeUniformBuffer(r->backend, r->shader3d.vShader, 0, sizeof(f32)*4*4);
-    r->cubes.pass.uniforms[0].type = hnUNIFORM_MAT4FV;
-    r->cubes.pass.uniforms[1] = hnMakeUniformBuffer(r->backend, r->shader3d.vShader, 1, sizeof(f32)*4*4);
-    r->cubes.pass.uniforms[1].type = hnUNIFORM_MAT4FV;
+    r->cubes.uniforms[0] = hnMakeUniformBuffer(r->backend, r->shader3d.vShader, 0, sizeof(f32)*4*4);
+    r->cubes.uniforms[0].type = hnUNIFORM_MAT4FV;
+    r->cubes.uniforms[1] = hnMakeUniformBuffer(r->backend, r->shader3d.vShader, 1, sizeof(f32)*4*4);
+    r->cubes.uniforms[1].type = hnUNIFORM_MAT4FV;
     
     //
     
-    r->ortho2d.pass = {};
-    r->ortho2d.pass.primitive = hnTRIANGLES;
-    r->ortho2d.pass.shader = &r->shader2d;
-    r->ortho2d.pass.target = r->backend->defaultTarget;
-    r->ortho2d.pass.scissor = hnRectMinMax({0,0}, win32.clientDim);
-    r->ortho2d.pass.blendEnabled = true;
-    r->ortho2d.pass.blendType = hnPREMULTIPLIED_ALPHA;
-    r->ortho2d.pass.depthTestEnabled = false;
-    r->ortho2d.pass.depthTestType = hnLESS_EQUAL;
+    r->ortho2d = {};
+    r->ortho2d.primitive = hnTRIANGLES;
+    r->ortho2d.shader = &r->shader2d;
+    r->ortho2d.target = r->backend->defaultTarget;
+    r->ortho2d.scissor = hnRectMinMax({0,0}, win32.clientDim);
+    r->ortho2d.blendEnabled = true;
+    r->ortho2d.blendType = hnPREMULTIPLIED_ALPHA;
+    r->ortho2d.depthTestEnabled = false;
+    r->ortho2d.depthTestType = hnLESS_EQUAL;
     
-    r->ortho2d.pass.uniformCount = 1;
-    r->ortho2d.pass.uniforms = hnPushArray(permanent, r->ortho2d.pass.uniformCount, hnGpuBuffer);
+    r->ortho2d.uniformCount = 1;
+    r->ortho2d.uniforms = hnPushArray(permanent, r->ortho2d.uniformCount, hnGpuBuffer);
     
-    r->ortho2d.pass.uniforms[0] = hnMakeUniformBuffer(r->backend, r->shader2d.vShader, 0, sizeof(f32)*4*4);
-    r->ortho2d.pass.uniforms[0].type = hnUNIFORM_MAT4FV;
+    r->ortho2d.uniforms[0] = hnMakeUniformBuffer(r->backend, r->shader2d.vShader, 0, sizeof(f32)*4*4);
+    r->ortho2d.uniforms[0].type = hnUNIFORM_MAT4FV;
     
     //
     
@@ -227,11 +239,11 @@ outColor = color * texelColor;
     
     //
     
-    r->cubes.pass.textureUnit = 0;
-    r->cubes.pass.textureHandle = r->textureArray.handle;
+    r->cubes.textureUnit = 0;
+    r->cubes.textureHandle = r->textureArray.handle;
     
-    r->ortho2d.pass.textureUnit = 0;
-    r->ortho2d.pass.textureHandle = r->textureArray.handle;
+    r->ortho2d.textureUnit = 0;
+    r->ortho2d.textureHandle = r->textureArray.handle;
     
     //
     

@@ -42,11 +42,11 @@ struct camera
     f32 pitch;
 };
 
-struct render_batch
+struct render_buffer
 {
     hnGpuBuffer vb;
     hnGpuBuffer ib;
-    hnRenderPass pass;
+    render_buffer *freeNext;
 };
 
 struct mcRenderer
@@ -69,8 +69,38 @@ struct mcRenderer
     hnSprite snow;
     hnSprite cobblestone;
     
-    render_batch cubes;
-    render_batch ortho2d;
+    hnRenderPass cubes;
+    hnRenderPass ortho2d;
+    
+    render_buffer ortho2dBuffer;
+    
+    render_buffer chunkBuffers[128]; // This must be the same as chunkHash
+    u32 chunkBufferIndex;
+    render_buffer *chunkBufferFreeFirst;
 };
+
+internal void
+freeChunkRenderBuffer(mcRenderer *r, render_buffer *buffer)
+{
+    buffer->freeNext = r->chunkBufferFreeFirst;
+    r->chunkBufferFreeFirst = buffer;
+}
+
+internal render_buffer *
+makeChunkRenderBuffer(mcRenderer *r)
+{
+    if (r->chunkBufferFreeFirst == 0)
+    {
+        r->chunkBufferFreeFirst = r->chunkBuffers + r->chunkBufferIndex++;
+    }
+    
+    render_buffer *result = r->chunkBufferFreeFirst;
+    r->chunkBufferFreeFirst = r->chunkBufferFreeFirst->freeNext;
+    
+    result->vb.index = 0;
+    result->ib.index = 0;
+    
+    return result;
+}
 
 #endif //RENDERER_H
