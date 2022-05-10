@@ -56,32 +56,12 @@ initRenderer(hnMandala *permanent, hnMandala *temporary)
     r->backend = hnInitRenderer(permanent, temporary, 800, 600, "Hello, World!");
     // glClipControl(GL_LOWER_LEFT, GL_ZERO_TO_ONE);
     
-    // IMPORTANT: This uses about 400 mb of gpu memory as of now
-    // 16x16x16x52x24=5.12mb per chunk (CHUNK_SIZE*sizeof(f32)*13*vertexCount)
-    // 128 chunk hash = 655.36mb + 75.5mb (for index buffer) of maximum Gpu memory
-    // 128 hash size may allow for a view dist of 11x11 with minimum hash collisions.
+    r->ortho2dVb = hnMakeVertexBuffer(r->backend, megabytes(4), sizeof(f32)*10);
+    r->ortho2dIb = hnMakeIndexBuffer(r->backend, megabytes(1));
     
-    for (u32 chunkBufferIndex = 0;
-         chunkBufferIndex < arrayCount(r->chunkBuffers);
-         ++chunkBufferIndex)
-    {
-        render_buffer *chunkBuffer = r->chunkBuffers + chunkBufferIndex;
-        
-        chunkBuffer->vb = hnMakeVertexBuffer(r->backend, (u32)megabytes(5.12f), sizeof(f32)*13); 
-        chunkBuffer->ib = hnMakeIndexBuffer(r->backend, kilobytes(590));
-        
-        hnSetInputLayout(&chunkBuffer->vb, 0, GL_FLOAT, 3, offsetof(vertex3d, pos));
-        hnSetInputLayout(&chunkBuffer->vb, 1, GL_FLOAT, 3, offsetof(vertex3d, uv));
-        hnSetInputLayout(&chunkBuffer->vb, 2, GL_FLOAT, 3, offsetof(vertex3d, nor));
-        hnSetInputLayout(&chunkBuffer->vb, 3, GL_FLOAT, 4, offsetof(vertex3d, col));
-    }
-    
-    r->ortho2dBuffer.vb = hnMakeVertexBuffer(r->backend, megabytes(4), sizeof(f32)*10);
-    r->ortho2dBuffer.ib = hnMakeIndexBuffer(r->backend, megabytes(1));
-    
-    hnSetInputLayout(&r->ortho2dBuffer.vb, 0, GL_FLOAT, 3, offsetof(vertex2d, pos));
-    hnSetInputLayout(&r->ortho2dBuffer.vb, 1, GL_FLOAT, 3, offsetof(vertex2d, uv));
-    hnSetInputLayout(&r->ortho2dBuffer.vb, 2, GL_FLOAT, 4, offsetof(vertex2d, col));
+    hnSetInputLayout(r->ortho2dVb, 0, GL_FLOAT, 3, offsetof(vertex2d, pos));
+    hnSetInputLayout(r->ortho2dVb, 1, GL_FLOAT, 3, offsetof(vertex2d, uv));
+    hnSetInputLayout(r->ortho2dVb, 2, GL_FLOAT, 4, offsetof(vertex2d, col));
     
     {
         char vertexShader[] = R"VSHADER(
@@ -90,7 +70,6 @@ initRenderer(hnMandala *permanent, hnMandala *temporary)
             layout (location=0) in vec3 inPos;
             layout (location=1) in vec3 inUV;
             layout (location=2) in vec3 inNor;
-            layout (location=3) in vec4 inCol;
             
             layout (location=0) uniform mat4 proj;
             layout (location=1) uniform mat4 view;
@@ -99,7 +78,6 @@ initRenderer(hnMandala *permanent, hnMandala *temporary)
             out vec3 fragP;
 out vec3 uv;
             out vec3 normal;
-            out vec4 color;
             
             void main()
             {
@@ -107,8 +85,7 @@ out vec3 uv;
                 fragP = inPos;
 uv = inUV;
                  normal = inNor;
-                color = inCol;
-            }
+                }
             )VSHADER";
         
         char fragShader[] = R"FSHADER(
@@ -117,7 +94,6 @@ uv = inUV;
             in vec3 fragP;
 in vec3 uv;
             in vec3 normal;
-            in vec4 color;
             
             layout (location=0)
             out vec4 outColor;
@@ -127,7 +103,7 @@ layout (binding=0)
             
             void main()
             {
-vec3 lightP = vec3(10,30,20);
+vec3 lightP = vec3(10,4000,20);
 vec3 lightColor = vec3(1,1,0);
 
 float ambientStrength = 0.1;
@@ -141,7 +117,7 @@ vec3 diffuse = diff * lightColor;
                 
 vec4 texelColor = texture(textureArray, uv);
 
-outColor = vec4(lightResult, 1) * color * texelColor;
+outColor = vec4(lightResult, 1) * texelColor;
             }
             )FSHADER";
         

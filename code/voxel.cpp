@@ -1,9 +1,11 @@
 internal void
 freeChunk(mcRenderer *r, voxel_map *map, chunk *c)
 {
-    freeChunkRenderBuffer(r, c->gpuBuffer);
+    assert(c->active);
+    assert(c->vb && c->vb->index);
+    assert(c->ib && c->ib->index);
     
-    c->gpuBuffer = 0;
+    c->active = false;
     
     // Add chunk to free list
     if (map->freeFirst)
@@ -24,61 +26,95 @@ freeChunk(mcRenderer *r, voxel_map *map, chunk *c)
 internal chunk *
 makeChunk(mcRenderer *r, voxel_map *map, s32 x, s32 y, s32 z)
 {
+    // Assume chunk came from free list 
+    b32 cameFromFreeList = true;
+    
     if (!map->freeFirst)
     {
-        map->freeFirst = hnPushStruct(map->permanent, chunk);
+        // Only when the free list is empty it means the chunk didn't come from it
+        cameFromFreeList = false;
         
         s32 voxelCount = (s32)(CHUNK_SIZE.x*CHUNK_SIZE.y*CHUNK_SIZE.z);
+        // Allocate memory for brand new chunk
+        map->freeFirst = hnPushStruct(map->permanent, chunk);
         map->freeFirst->voxels = hnPushArray(map->permanent, voxelCount, u32);
+        // Clear voxel memory to zero
+        memset(map->freeFirst->voxels, 0, voxelCount*4);
     }
     
-    u32 hashIndex = getChunkHashIndex(map, x, y, z);
+    v3 oldP = map->freeFirst->p;
+    v3 newP = v3{(f32)x,(f32)y,(f32)z};
+    u32 hashIndex = getChunkHashIndex(map, (s32)newP.x, (s32)newP.y, (s32)newP.z);
     
+    // Grab the head of the free list for the new chunk
     chunk *result = map->freeFirst;
     map->freeFirst = map->freeFirst->freeNext;
     
-    // Remove chunk from hash table in case this came from the free list
-    if (result->prevInHash)
+    if (cameFromFreeList)
     {
-        result->prevInHash->nextInHash = result->nextInHash;
-    }
-    else
-    {
-        u32 oldHashIndex = getChunkHashIndex(map, (s32)result->p.x, (s32)result->p.y, (s32)result->p.z);
-        if (map->hash[oldHashIndex] == result)
+        // If this chunk came from the free list, it means it is in the hash table
+        // as an inactive chunk waiting to be used. Now, since we are getting it from here
+        // it means it should have a different position than the one we want.
+        assert((oldP != newP));
+        assert(result->active == false);
+        assert(result->vb && result->vb->index && result->ib && result->ib->index);
+        
+        // Also, the chunk is currently in a wrong position in the hash table, so we need
+        // to remove it from that chain and push it to a new chain. This is because we are
+        // reusing this chunk, so we are updating the pointers now.
+        if (result->prevInHash)
         {
-            map->hash[oldHashIndex] = 0;
+            // Update next pointer of the chunk previous to this in the chain if there is one
+            result->prevInHash->nextInHash = result->nextInHash;
+        }
+        else
+        {
+            // If there is not previous in hash, it means this chunk was the head of the chain
+            // In that case we need to remove it from the head as well.
+            u32 oldHashIndex = getChunkHashIndex(map, (s32)oldP.x, (s32)oldP.y, (s32)oldP.z);
+            assert(map->hash[oldHashIndex] == result);
+            
+            map->hash[oldHashIndex] = result->nextInHash;
+        }
+        
+        if (result->nextInHash)
+        {
+            // Update prev pointer of the chunk next to this in the chain if there is one
+            result->nextInHash->prevInHash = result->prevInHash;
         }
     }
     
-    if (result->nextInHash)
-    {
-        result->nextInHash->prevInHash = result->prevInHash;
-    }
-    result->prevInHash = 0;
-    result->nextInHash = 0;
-    
-    
-    // Put in the head of the hash chain
+    // Now put the new chunk in the head of the new hash chain it belongs to
     if (map->hash[hashIndex])
     {
         map->hash[hashIndex]->prevInHash = result;
     }
-    
+    result->prevInHash = 0;
     result->nextInHash = map->hash[hashIndex];
     map->hash[hashIndex] = result;
     
-    if (!result->gpuBuffer)
+    if (!result->vb)
     {
-        // Make vertex and index buffers
-        result->gpuBuffer = makeChunkRenderBuffer(r);
-    }
-    else
-    {
-        result->gpuBuffer->active = true;
+        assert(!result->ib);
+        
+        // Make vertex and index buffers if this chunk doesn't have any yet
+        result->vb = hnMakeVertexBuffer(r->backend, (u32)megabytes(3.5f), sizeof(f32)*9); 
+        result->ib = hnMakeIndexBuffer(r->backend, kilobytes(393));
+        
+        hnSetInputLayout(result->vb, 0, GL_FLOAT, 3, offsetof(vertex3d, pos));
+        hnSetInputLayout(result->vb, 1, GL_FLOAT, 3, offsetof(vertex3d, uv));
+        hnSetInputLayout(result->vb, 2, GL_FLOAT, 3, offsetof(vertex3d, nor));
     }
     
-    result->p = v3{(f32)x,(f32)y,(f32)z};
+    // The chunk will only become active after the generation function
+    // takes care of it. Right now it is marked as not active.
+    result->active = false;
+    
+    // We don't set the position in make chunk, so that we can check
+    // against it outside of this function, to know if we need to recreate
+    // the chunk data or not.
+    
+    result->cameFromFreeList = cameFromFreeList;
     
     result->freeNext = 0;
     result->freePrev = 0;
@@ -86,8 +122,50 @@ makeChunk(mcRenderer *r, voxel_map *map, s32 x, s32 y, s32 z)
     return result;
 }
 
+internal void
+removeChunkIfInFreeList(mcRenderer *r, voxel_map *map, chunk *c)
+{
+    chunk *freeNode = map->freeFirst;
+    while (freeNode)
+    {
+        // Remove the chunk itself from chunk free list if the pos is the same
+        if (freeNode->p == c->p)
+        {
+            // If there is a previous pointer for this free node
+            if (freeNode->freePrev)
+            {
+                // Update it to point to this node's next pointer
+                freeNode->freePrev->freeNext = freeNode->freeNext;
+            }
+            else
+            {
+                // If there was not a previous pointer to this node
+                // it means that this node was the head of the free list
+                assert(map->freeFirst == freeNode);
+                
+                // So it needs to be removed from the head of the free list
+                map->freeFirst = freeNode->freeNext;
+            }
+            
+            if (freeNode->freeNext)
+            {
+                // Update free next's previous pointer if there is a free next
+                freeNode->freeNext->freePrev = freeNode->freePrev;
+            }
+            
+            freeNode->freePrev = 0;
+            freeNode->freeNext = 0;
+            
+            // There should be only one entry for chunk in the free list so can early exit
+            break;
+        }
+        
+        freeNode = freeNode->freeNext;
+    }
+}
+
 inline chunk *
-getChunk(mcRenderer *r, voxel_map *map, s32 x, s32 y, s32 z)
+getChunk(voxel_map *map, s32 x, s32 y, s32 z, b32 makeIfNotFound=false)
 {
     u32 hashIndex = getChunkHashIndex(map, x, y, z);
     chunk *result = map->hash[hashIndex];
@@ -99,244 +177,180 @@ getChunk(mcRenderer *r, voxel_map *map, s32 x, s32 y, s32 z)
         {
             result = result->nextInHash;
         }
-        
-        // If found the chunk
-        if (result)
-        {
-            assert((result->p.x == x && result->p.y == y && result->p.z == z));
-            
-            chunk *c = map->freeFirst;
-            while (c)
-            {
-                if (c->p == result->p)
-                {
-                    if (c->freePrev)
-                    {
-                        c->freePrev->freeNext = c->freeNext;
-                    }
-                    else
-                    {
-                        if (map->freeFirst == c)
-                        {
-                            map->freeFirst = 0;
-                        }
-                    }
-                    
-                    if (c->freeNext)
-                    {
-                        c->freeNext->freePrev = c->freePrev;
-                    }
-                    c->freePrev = 0;
-                    c->freeNext = 0;
-                    
-                    
-                    break;
-                }
-                
-                c = c->freeNext;
-            }
-        }
-        else
-        {
-            // Didn't find the chunk, need to add a new chunk in the hash chain
-            chunk *newChunk = makeChunk(r, map, x, y, z);
-            result = newChunk;
-        }
     }
-    else
-    {
-        result = makeChunk(r, map, x, y, z);
-    }
+    
+    assert((result == 0) || (result->p.x == x && result->p.y == y && result->p.z == z));
     
     return result;
 }
 
 internal void
-freeChunksInRange(mcRenderer *r, voxel_map *map, v3 min, v3 max)
+pushFacesThatFaceAFreeSpace(chunk *c, hnSprite sprite, s32 x, s32 y, s32 z)
 {
-    for (s32 chunkX = (s32)min.x;
-         chunkX < max.x;
-         ++chunkX)
-    {
-        for (s32 chunkZ = (s32)min.z;
-             chunkZ < max.z;
-             ++chunkZ)
-        {
-            chunk *c = getChunk(r, map, chunkX, 0, chunkZ);
-            freeChunk(r, map, c);
-        }
-    }
-}
-
-internal b32
-hasSpaceAround(chunk *c, s32 x, s32 y, s32 z)
-{
-    b32 result = false;
+    v3 pos = c->p * CHUNK_SIZE + v3{(f32)x,(f32)y,(f32)z};
+    v3 dim = {1,1,1};
     
+    v3 uvMin = sprite.uvMin;
+    v3 uvMax = sprite.uvMax;
+    
+    f32 nx = pos.x - 0.5f*dim.x; 
+    f32 ny = pos.y - 0.5f*dim.y;
+    f32 nz = pos.z - 0.5f*dim.z;
+    
+    f32 px = pos.x + 0.5f*dim.x; 
+    f32 py = pos.y + 0.5f*dim.y;
+    f32 pz = pos.z + 0.5f*dim.z;
+    
+    v4 color = hnWHITE;
+    
+    // TODO: Fix drawing in chunk borders
     // If it is in the boundary of the chunk
     if ((x == 0 || x == CHUNK_SIZE.x-1) ||
         (y == 0 || y == CHUNK_SIZE.y-1) ||
         (z == 0 || z == CHUNK_SIZE.z-1))
     {
-        result = true;
+        // Push if this is a chunk from the boundary
+        
     }
     else
     {
         if (getVoxel(c, x-1, y, z) == 0) // Left
         {
-            result = true;
+            // X negative
+            hnPushCubeFaceIndexed(c->vb,c->ib,sprite,{nx,ny,nz},{nx,ny,pz},{nx,py,pz},{nx,py,nz},{-1,0,0});
         }
-        else if (getVoxel(c, x+1, y, z) == 0) // Right
+        
+        if (getVoxel(c, x+1, y, z) == 0) // Right
         {
-            result = true;
+            // X positive
+            hnPushCubeFaceIndexed(c->vb,c->ib,sprite,{px,ny,pz},{px,ny,nz},{px,py,nz},{px,py,pz},{1,0,0});
         }
-        else if (getVoxel(c, x, y-1, z) == 0) // Below
+        
+        if (getVoxel(c, x, y-1, z) == 0) // Below
         {
-            result = true;
+            // Y negative
+            hnPushCubeFaceIndexed(c->vb,c->ib,sprite,{nx,ny,nz},{px,ny,nz},{px,ny,pz},{nx,ny,pz},{0,-1,0});
         }
-        else if (getVoxel(c, x, y+1, z) == 0) // Above
+        
+        if (getVoxel(c, x, y+1, z) == 0) // Above
         {
-            result = true;
+            // Y positive
+            hnPushCubeFaceIndexed(c->vb,c->ib,sprite,{nx,py,pz},{px,py,pz},{px,py,nz},{nx,py,nz},{0,1,0});
         }
-        else if (getVoxel(c, x, y, z-1) == 0) // Front
+        
+        if (getVoxel(c, x, y, z-1) == 0) // Front
         {
-            result = true;
+            // Z negative
+            hnPushCubeFaceIndexed(c->vb,c->ib,sprite,{nx,py,nz},{px,py,nz},{px,ny,nz},{nx,ny,nz},{0,0,-1});
         }
-        else if (getVoxel(c, x, y, z+1) == 0) // Back
+        
+        if (getVoxel(c, x, y, z+1) == 0) // Back
         {
-            result = true;
+            // Z positive
+            hnPushCubeFaceIndexed(c->vb,c->ib,sprite,{nx,ny,pz},{px,ny,pz},{px,py,pz},{nx,py,pz},{0,0,1});
         }
     }
-    
-    return result;
 }
 
 internal void
-makeChunksInRange(mcRenderer *r, voxel_map *map, v3 min, v3 max)
+generateChunkValues(chunk *c, f32 maxHeight)
 {
-    // First generate all the cubes
-    f32 maxHeight = 64;
-    s32 chunkY = 0;
-    for (s32 chunkX = (s32)min.x;
-         chunkX < max.x;
-         ++chunkX)
+    // Determine max height per voxel (x,z)
+    f32 maxHeights[(s32)CHUNK_SIZE.z][(s32)CHUNK_SIZE.x];
+    for (s32 voxelX = 0;
+         voxelX < CHUNK_SIZE.x;
+         ++voxelX)
     {
-        for (s32 chunkZ = (s32)min.z;
-             chunkZ < max.z;
-             ++chunkZ)
+        for (s32 voxelZ = 0;
+             voxelZ < CHUNK_SIZE.z;
+             ++voxelZ)
         {
-            chunk *c = getChunk(r, map, chunkX, 0, chunkZ);
+            u32 cubeMaterial = 1;
             
-            for (s32 voxelY = 0;
-                 voxelY < CHUNK_SIZE.y;
-                 ++voxelY)
+            f32 compX = (f32)(c->p.x*CHUNK_SIZE.x + voxelX);
+            f32 compZ = (f32)(c->p.z*CHUNK_SIZE.z + voxelZ);
+            
+            f32 height = floorf(maxHeight*(f32)hnPerlin2D(compX,compZ,0.005f,4));
+            maxHeights[voxelZ][voxelX] = height;
+        }
+    }
+    
+    // Set every voxel below maxheight to zero
+    for (s32 voxelX = 0;
+         voxelX < CHUNK_SIZE.x;
+         ++voxelX)
+    {
+        for (s32 voxelZ = 0;
+             voxelZ < CHUNK_SIZE.z;
+             ++voxelZ)
+        {
+            for (s32 voxelY = (s32)maxHeights[voxelZ][voxelX];
+                 voxelY >= 0;
+                 --voxelY)
             {
-                for (s32 voxelX = 0;
-                     voxelX < CHUNK_SIZE.x;
-                     ++voxelX)
+                setVoxel(c, voxelX, voxelY, voxelZ, 1);
+            }
+        }
+    }
+}
+
+internal void
+pushChunkGeometryToGpuBuffer(mcRenderer *r, chunk *c)
+{
+    c->vb->index = 0;
+    c->ib->index = 0;
+    
+    v3 scale = v3{1,1,1};
+    for (s32 y = 0;
+         y < CHUNK_SIZE.y;
+         ++y)
+    {
+        for (s32 x = 0;
+             x < CHUNK_SIZE.x;
+             ++x)
+        {
+            for (s32 z = 0;
+                 z < CHUNK_SIZE.z;
+                 ++z)
+            {
+                u32 material = getVoxel(c, x, y, z);
+                
+                f32 compX = c->p.x*scale.x*CHUNK_SIZE.x + x;
+                f32 compY = c->p.y*scale.y*CHUNK_SIZE.y + y;
+                f32 compZ = c->p.z*scale.z*CHUNK_SIZE.z + z;
+                
+                v3 p = 
                 {
-                    for (s32 voxelZ = 0;
-                         voxelZ < CHUNK_SIZE.z;
-                         ++voxelZ)
-                    {
-                        u32 cubeMaterial = 1;
-                        
-                        f32 compX = (f32)(chunkX*CHUNK_SIZE.x + voxelX);
-                        f32 compY = (f32)(chunkY*CHUNK_SIZE.y + voxelY);
-                        f32 compZ = (f32)(chunkZ*CHUNK_SIZE.z + voxelZ);
-                        
-                        f32 height = floorf(maxHeight*(f32)hnPerlin2D(compX,compZ,0.05f,6));
-                        
-                        if (compY <= height)
-                        {
-                            if (compZ > maxHeight/1.5f)
-                            {
-                                cubeMaterial = 3;
-                            }
-                            else if (compZ > maxHeight/2)
-                            {
-                                cubeMaterial = 2;
-                            }
-                            
-                            setVoxel(c, voxelX, voxelY, voxelZ, cubeMaterial);
-                        }
-                        else
-                        {
-                            setVoxel(c, voxelX, voxelY, voxelZ, 0);
-                        }
-                    }
+                    compX*scale.x,
+                    compY*scale.y,
+                    compZ*scale.z,
+                };
+                
+                hnSprite sprite = r->white;
+                v4 color = {};
+                if (material == 1)
+                {
+                    sprite = r->dirt;
+                }
+                else if (material == 2)
+                {
+                    sprite = r->stone;
+                }
+                else if (material == 3)
+                {
+                    sprite = r->snow;
+                }
+                
+                if (material)
+                {
+                    pushFacesThatFaceAFreeSpace(c, sprite, x, y, z);
                 }
             }
         }
     }
     
-    // Then push only the cubes that should be drawn
-    for (s32 chunkX = (s32)min.x;
-         chunkX < max.x;
-         ++chunkX)
-    {
-        for (s32 chunkZ = (s32)min.z;
-             chunkZ < max.z;
-             ++chunkZ)
-        {
-            chunk *c = getChunk(r, map, chunkX, 0, chunkZ);
-            
-            c->gpuBuffer->vb.index = 0;
-            c->gpuBuffer->ib.index = 0;
-            
-            v3 scale = v3{1,1,1};
-            for (s32 y = 0;
-                 y < CHUNK_SIZE.y;
-                 ++y)
-            {
-                for (s32 x = 0;
-                     x < CHUNK_SIZE.x;
-                     ++x)
-                {
-                    for (s32 z = 0;
-                         z < CHUNK_SIZE.z;
-                         ++z)
-                    {
-                        u32 material = getVoxel(c, x, y, z);
-                        
-                        f32 compX = chunkX*scale.x*CHUNK_SIZE.x + x;
-                        f32 compY = chunkY*scale.y*CHUNK_SIZE.y + y;
-                        f32 compZ = chunkZ*scale.z*CHUNK_SIZE.z + z;
-                        
-                        v3 p = 
-                        {
-                            compX*scale.x,
-                            compY*scale.y,
-                            compZ*scale.z,
-                        };
-                        
-                        hnSprite sprite = r->white;
-                        v4 color = {};
-                        if (material == 1)
-                        {
-                            sprite = r->dirt;
-                        }
-                        else if (material == 2)
-                        {
-                            sprite = r->stone;
-                        }
-                        else if (material == 3)
-                        {
-                            sprite = r->snow;
-                        }
-                        
-                        if (material && hasSpaceAround(c, x, y, z))
-                        {
-                            hnPushCubeIndexed(&c->gpuBuffer->vb, &c->gpuBuffer->ib, sprite, p, scale, hnWHITE);
-                        }
-                    }
-                }
-            }
-            
-            hnUploadGpuBuffer(r->backend, &c->gpuBuffer->vb);
-            hnUploadGpuBuffer(r->backend, &c->gpuBuffer->ib);
-        }
-    }
+    hnUploadGpuBuffer(r->backend, c->vb);
+    hnUploadGpuBuffer(r->backend, c->ib);
 }
 
 internal void
@@ -344,92 +358,152 @@ updateChunkLoading(mcRenderer *r, voxel_map *map, v3 camP)
 {
     v3 cameraChunkP = floor(camP / CHUNK_SIZE);
     
-    if ((map->currentCenter == map->oldCenter) && (map->currentCenter == v3{0,0,0}))
-    {
-        // First time, load everything
-        map->oldCenter = cameraChunkP;
-        map->currentCenter = cameraChunkP;
-        
-        v3 inMin = map->currentCenter - 0.5f*map->viewDist;
-        v3 inMax = map->currentCenter + 0.5f*map->viewDist;
-        makeChunksInRange(r, map, inMin, inMax);
-    }
-    else if (absolute(cameraChunkP.x - map->currentCenter.x) >= (0.25f*map->viewDist.x) ||
-             absolute(cameraChunkP.z - map->currentCenter.z) >= (0.25f*map->viewDist.z))
+    b32 firstTime = ((map->currentCenter == map->oldCenter) && (map->currentCenter == v3{0,0,0}));
+    
+    b32 camMovedMaxDistance = ((absolute(cameraChunkP.x - map->currentCenter.x) >= (0.25f*map->viewDist.x) ||
+                                absolute(cameraChunkP.z - map->currentCenter.z) >= (0.25f*map->viewDist.z)));
+    
+    if (firstTime || camMovedMaxDistance)
     {
         // Unload and load only the chunks around it
         map->oldCenter = map->currentCenter;
         map->currentCenter = cameraChunkP;
         
-        v3 oldMin = map->oldCenter - 0.5f*map->viewDist;
-        v3 oldMax = map->oldCenter + 0.5f*map->viewDist;
-        v3 newMin = map->currentCenter - 0.5f*map->viewDist;
-        v3 newMax = map->currentCenter + 0.5f*map->viewDist;
+        // NOTE: Determine the minimum and maximum bounds between the old
+        // and the new center position (based on view dist).
         
-        v3 delta = map->currentCenter - map->oldCenter;
+        v3 p[4] = {};
+        p[0] = map->oldCenter - 0.5f*map->viewDist; // oldMin
+        p[1] = map->oldCenter + 0.5f*map->viewDist; // oldMax
+        p[2] = map->currentCenter - 0.5f*map->viewDist; // newMin
+        p[3] = map->currentCenter + 0.5f*map->viewDist; // newMax
         
-        v3 inMin = {};
-        v3 inMax = {};
-        v3 outMin = {};
-        v3 outMax = {};
+        v3 min = {10000000,10000000,10000000};
+        v3 max = {-10000000,-10000000,-10000000};
         
-        // X
-        if (delta.x > 0) 
+        for (s32 i = 0;
+             i < 4;
+             ++i)
         {
-            inMin.x = oldMax.x;
-            outMin.x = oldMin.x;
-        }
-        else if (delta.x < 0)
-        {
-            inMin.x = newMin.x;
-            outMin.x = newMax.x;
-        }
-        else
-        {
-            inMin.x = newMin.x;
-            outMin.x = newMin.x;
-        }
-        
-        if (delta.x == 0)
-        {
-            inMax.x = inMin.x + map->viewDist.x;
-            outMax.x = outMin.x + map->viewDist.x;
-        }
-        else
-        {
-            inMax.x = inMin.x + 0.25f*map->viewDist.x;
-            outMax.x = outMin.x + 0.25f*map->viewDist.x;
+            if (p[i].x < min.x)
+            {
+                min.x = p[i].x;
+            }
+            
+            if (p[i].z < min.z)
+            {
+                min.z = p[i].z;
+            }
+            
+            if (p[i].x > max.x)
+            {
+                max.x = p[i].x;
+            }
+            
+            if (p[i].z > max.z)
+            {
+                max.z = p[i].z;
+            }
         }
         
-        // Z
-        if (delta.z > 0) 
+        // NOTE: Loop through all of the chunks in a big square containing all
+        // chunks that could be inside the circle with viewdist as radius. They
+        // are tested against a dist diagonally so we have a "circular" view dist.
+        s32 chunkY = 0;
+        for (s32 chunkX = (s32)(min.x + 0.5f);
+             chunkX < (s32)(max.x + 0.5f);
+             ++chunkX)
         {
-            inMin.z = oldMax.z;
-            outMin.z = oldMin.z;
+            for (s32 chunkZ = (s32)(min.z + 0.5f);
+                 chunkZ < (s32)(max.z + 0.5f);
+                 ++chunkZ)
+            {
+                v3 chunkP = {(f32)chunkX,(f32)chunkY,(f32)chunkZ};
+                
+                v2 newCenterXZ = {map->currentCenter.x, map->currentCenter.z};
+                v2 chunkXZ = {(f32)chunkX, (f32)chunkZ};
+                
+                f32 distFromNewCenter = length(newCenterXZ - chunkXZ); // Integer chunk coords
+                // NOTE: View dist is a v3 with all equal dimensions
+                f32 maxDist = 0.5f * map->viewDist.x;  
+                
+                // NOTE: Free the chunk if it is too distant (outside the "circle")
+                if (distFromNewCenter > maxDist)
+                {
+                    chunk *c = getChunk(map, chunkX, chunkY, chunkZ);
+                    if (c && c->active)
+                    {
+                        freeChunk(r, map, c);
+                    }
+                }
+                else
+                {
+                    // NOTE: The chunk is inside the "circle"
+                    chunk *c = getChunk(map, chunkX, chunkY, chunkZ);
+                    
+                    // NOTE: If the hash table look up failed, it means this chunk has not been created yet.
+                    // So we will need to make it.
+                    if (!c)
+                    {
+                        c = makeChunk(r, map, chunkX, chunkY, chunkZ);
+                        assert(c->vb && c->ib);
+                        
+                        if (c->cameFromFreeList)
+                        {
+                            // NOTE: If the chunk came from the free list, it should never be the same chunk
+                            assert(c->p != chunkP);
+                            // This could never happen because when we free a chunk we let it keep its pos
+                            // and all the rest of its data, that is so that we can keep that work later on.
+                            // So in the hash table, the chunk is marked as inactive and the chunk is also
+                            // pushed to the free list, but the hash table still contains the pointer to the
+                            // freed chunk, which means we can access it directly and through the free list.
+                            // But since we always try to getChunk() before calling makeChunk() (which uses
+                            // the free list), it means we will always get the chunk in getChunk() if it has
+                            // been created before, which is the only case it could have the same position.
+                            // Then, we also remove it from the free list right there, so the assert should
+                            // never fail.
+                            
+                            assert(c->vb->index && c->ib->index);
+                            c->vb->index = 0;
+                            c->ib->index = 0;
+                        }
+                        else
+                        {
+                            assert(!c->vb->index && !c->ib->index);
+                        }
+                        
+                        // NOTE: makeChunk() doesn't set the position because of the assert above, so we need
+                        // to set it right here.
+                        c->p = v3{(f32)chunkX,(f32)chunkY,(f32)chunkZ};
+                        
+                    }
+                    
+                    if (c->active == false)
+                    {
+                        c->active = true;
+                        
+                        // NOTE: If this chunk in in the free list currently that is a problem
+                        // Because since we are accessing this chunk directly in the hash table
+                        // we wouldn't know it is used when we would try to use it from the free
+                        // list. We could choose to test against it then and remove it from the
+                        // free list, or we could choose to remove it from the free list here.
+                        // Currently we are just removing it from the free list here.
+                        removeChunkIfInFreeList(r, map, c);
+                        // TODO: Test with both options, and measure which one performs better.
+                        
+                        
+                        // TODO: We have the chunk generation and the data copy to GPU in 
+                        // separate steps at the moment. Not sure if it is a good idea?
+                        // There are possibly redundent loops going on.
+                        generateChunkValues(c, 256);
+                        pushChunkGeometryToGpuBuffer(r, c);
+                    }
+                    else
+                    {
+                        assert(c->vb && c->vb->index && c->ib && c->ib->index);
+                    }
+                }
+            }
         }
-        else if (delta.z < 0)
-        {
-            inMin.z = newMin.z;
-            outMin.z = newMax.z;
-        }
-        else
-        {
-            inMin.z = newMin.z;
-            outMin.z = newMin.z;
-        }
-        
-        if (delta.z == 0)
-        {
-            inMax.z = inMin.z + map->viewDist.z;
-            outMax.z = outMin.z + map->viewDist.z;
-        }
-        else
-        {
-            inMax.z = inMin.z + 0.25f*map->viewDist.z;
-            outMax.z = outMin.z + 0.25f*map->viewDist.z;
-        }
-        
-        freeChunksInRange(r, map, outMin, outMax);
-        makeChunksInRange(r, map, inMin, inMax);
     }
 }

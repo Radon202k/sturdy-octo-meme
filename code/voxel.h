@@ -3,29 +3,35 @@
 #ifndef VOXEL_H
 #define VOXEL_H
 
-#define CHUNK_SIZE v3{16,16,16}
+#define CHUNK_SIZE v3{16,256,16}
 
 struct chunk
 {
+    b32 active;
+    
     v3 p; // Integer coordinates
     u32 *voxels;
+    
     chunk *freePrev;
     chunk *freeNext;
     
     chunk *nextInHash;
     chunk *prevInHash;
     
-    render_buffer *gpuBuffer;
+    b32 cameFromFreeList;
+    
+    hnGpuBuffer *vb;
+    hnGpuBuffer *ib;
 };
 
 struct voxel_map
 {
     hnMandala *permanent;
     
-    chunk *hash[128];
+    chunk *hash[CHUNK_HASH_TABLE_SIZE];
     chunk *freeFirst;
     
-    v3 viewDist; // Integer chunk units
+    v3 viewDist; // Integer chunk units (must have all dimensions equal)
     v3 oldCenter; // Integer chunk coordinates
     v3 currentCenter; // Integer chunk coordinates
 };

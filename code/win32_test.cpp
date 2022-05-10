@@ -53,7 +53,7 @@ initWorld(void)
     app.cam.yaw = -90.0f;
     app.cam.pitch = 0;
     
-    app.cam.pos = {0,30,3};
+    app.cam.pos = {0,300,0};
     app.cam.front = {0,0,-1};
     app.cam.up = {0,1,0};
     
@@ -64,7 +64,7 @@ initWorld(void)
     app.overworld.permanent = &app.permanent;
     memset(app.overworld.hash, 0, sizeof(chunk *) * arrayCount(app.overworld.hash));
     
-    app.overworld.viewDist = {5,1,5};
+    app.overworld.viewDist = {10,1,10};
 }
 
 internal void
@@ -155,34 +155,45 @@ int WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdLine, int cmdSh
     {
         hnPrepareFrame(app.renderer->backend, 0);
         
-        app.renderer->ortho2dBuffer.ib.index = 0;
-        app.renderer->ortho2dBuffer.vb.index = 0;
+        app.renderer->ortho2dVb->index = 0;
+        app.renderer->ortho2dIb->index = 0;
         
         updateWorld();
         
         updateDebugDisplay();
         
-        hnUploadGpuBuffer(app.renderer->backend, &app.renderer->ortho2dBuffer.vb);
-        hnUploadGpuBuffer(app.renderer->backend, &app.renderer->ortho2dBuffer.ib);
+        hnUploadGpuBuffer(app.renderer->backend, app.renderer->ortho2dVb);
+        hnUploadGpuBuffer(app.renderer->backend, app.renderer->ortho2dIb);
         
         updateProjectionMatrices(app.renderer, &app.cam);
         
-        u32 passIndex = 0;
-        for (u32 chunkBufferIndex = 0;
-             chunkBufferIndex < app.renderer->chunkBufferIndex;
-             ++chunkBufferIndex)
+        
+        v3 chunkLoadingCenter = app.overworld.currentCenter;
+        
+        v3 extentsMin = chunkLoadingCenter - 0.5f*app.overworld.viewDist; // oldMin
+        v3 extentsMax = chunkLoadingCenter + 0.5f*app.overworld.viewDist; // oldMax
+        
+        u32 renderPassIndex = 0;
+        for (s32 chunkX = (s32)extentsMin.x;
+             chunkX < extentsMax.x;
+             ++chunkX)
         {
-            render_buffer *buffer = app.renderer->chunkBuffers + chunkBufferIndex;
-            if (buffer->active)
+            for (s32 chunkZ = (s32)extentsMin.z;
+                 chunkZ < extentsMax.z;
+                 ++chunkZ)
             {
-                b32 clear = (passIndex++ == 0);
-                hnExecuteRenderPass(app.renderer->backend, &app.renderer->cubes, 
-                                    &buffer->vb, &buffer->ib, clear, hnDIMGRAY);
+                chunk *c = getChunk(&app.overworld, chunkX, 0, chunkZ);
+                if (c && c->active)
+                {
+                    b32 clear = (renderPassIndex++ == 0);
+                    hnExecuteRenderPass(app.renderer->backend, &app.renderer->cubes, 
+                                        c->vb, c->ib, clear, hnDIMGRAY);
+                }
             }
         }
         
         hnExecuteRenderPass(app.renderer->backend, &app.renderer->ortho2d, 
-                            &app.renderer->ortho2dBuffer.vb, &app.renderer->ortho2dBuffer.ib, false, {});
+                            app.renderer->ortho2dVb, app.renderer->ortho2dIb, false, {});
         
         hnPresentFrame(app.renderer->backend, 0);
     }

@@ -41,7 +41,7 @@ drawDtHistoryGraph(v2 p, f32 height)
         v4 color = hnGOLD;
         if (maxDt > 0.018f)
         {
-            if (relDt > 0.5f)
+            if (dtValue > 0.02f)
             {
                 color = hnCRIMSON;
                 
@@ -50,8 +50,8 @@ drawDtHistoryGraph(v2 p, f32 height)
                 
                 u32 debugLine = 0;
                 
-                hnPushStringIndexed(&app.renderer->font, &app.renderer->textureArray, &
-                                    app.renderer->ortho2dBuffer.vb, &app.renderer->ortho2dBuffer.ib,
+                hnPushStringIndexed(&app.renderer->font, &app.renderer->textureArray, 
+                                    app.renderer->ortho2dVb, app.renderer->ortho2dIb,
                                     dtLabel, toV3(p,0) + barP, hnCRIMSON, 0, false, 1);
                 
             }
@@ -61,7 +61,7 @@ drawDtHistoryGraph(v2 p, f32 height)
             }
         }
         
-        hnPushSpriteIndexed(&app.renderer->ortho2dBuffer.vb, &app.renderer->ortho2dBuffer.ib, 
+        hnPushSpriteIndexed(app.renderer->ortho2dVb, app.renderer->ortho2dIb, 
                             app.renderer->white, toV3(p,0) + barP, barDim, color, 0, false);
     }
     
@@ -78,30 +78,15 @@ updateDebugDisplay(void)
     u32 debugLine = 0;
     
     hnPushStringIndexed(&app.renderer->font, &app.renderer->textureArray, 
-                        &app.renderer->ortho2dBuffer.vb, &app.renderer->ortho2dBuffer.ib,
+                        app.renderer->ortho2dVb, app.renderer->ortho2dIb,
                         dtLabel, {0,(f32)(++debugLine)*16}, hnGOLD, 0, false, 1);
     
     char cameraPosLabel[256] = {};
     hnMakeV3Label(cameraPosLabel,sizeof(cameraPosLabel),app.cam.pos,"Camera world pos");
     
     hnPushStringIndexed(&app.renderer->font, &app.renderer->textureArray, 
-                        &app.renderer->ortho2dBuffer.vb, &app.renderer->ortho2dBuffer.ib,
+                        app.renderer->ortho2dVb, app.renderer->ortho2dIb,
                         cameraPosLabel, {0,(f32)(++debugLine)*16}, hnGOLD, 0, false, 1);
-    
-    char chunkBufferFreeListCountLabel[256] = {};
-    u32 chunkBufferFreeListCount = 0;
-    for (render_buffer *c = app.renderer->chunkBufferFreeFirst;
-         c;
-         c = c->freeNext)
-    {
-        ++chunkBufferFreeListCount;
-    }
-    hnMakeIntLabel(chunkBufferFreeListCountLabel,sizeof(chunkBufferFreeListCountLabel),chunkBufferFreeListCount,"Chunk buffer free list count");
-    
-    hnPushStringIndexed(&app.renderer->font, &app.renderer->textureArray, 
-                        &app.renderer->ortho2dBuffer.vb, &app.renderer->ortho2dBuffer.ib,
-                        chunkBufferFreeListCountLabel, {0,(f32)(++debugLine)*16}, hnGOLD, 0, false, 1);
-    
     
     
     char chunkFreeListCountLabel[256] = {};
@@ -115,7 +100,7 @@ updateDebugDisplay(void)
     hnMakeIntLabel(chunkFreeListCountLabel,sizeof(chunkFreeListCountLabel),chunkFreeListCount,"Chunk free list count");
     
     hnPushStringIndexed(&app.renderer->font, &app.renderer->textureArray, 
-                        &app.renderer->ortho2dBuffer.vb, &app.renderer->ortho2dBuffer.ib,
+                        app.renderer->ortho2dVb, app.renderer->ortho2dIb,
                         chunkFreeListCountLabel, {0,(f32)(++debugLine)*16}, hnGOLD, 0, false, 1);
     
     

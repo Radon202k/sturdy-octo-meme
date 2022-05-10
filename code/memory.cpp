@@ -11,7 +11,7 @@ allocMemoryPools(void)
 #else
     void *platMemAddress = 0;
 #endif
-    u32 platPermSize = gigabytes(2);
+    u32 platPermSize = gigabytes(3);
     u32 platTempSize = megabytes(512);
     u32 totalMemSize = platPermSize + platTempSize;
     

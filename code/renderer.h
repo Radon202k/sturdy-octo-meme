@@ -42,14 +42,7 @@ struct camera
     f32 pitch;
 };
 
-struct render_buffer
-{
-    b32 active;
-    hnGpuBuffer vb;
-    hnGpuBuffer ib;
-    
-    render_buffer *freeNext;
-};
+#define CHUNK_HASH_TABLE_SIZE 512
 
 struct mcRenderer
 {
@@ -72,44 +65,11 @@ struct mcRenderer
     hnSprite cobblestone;
     
     hnRenderPass cubes;
+    
     hnRenderPass ortho2d;
     
-    render_buffer ortho2dBuffer;
-    
-    render_buffer chunkBuffers[128]; // This must be the same as chunkHash
-    u32 chunkBufferIndex;
-    render_buffer *chunkBufferFreeFirst;
+    hnGpuBuffer *ortho2dVb;
+    hnGpuBuffer *ortho2dIb;
 };
-
-internal void
-freeChunkRenderBuffer(mcRenderer *r, render_buffer *buffer)
-{
-    buffer->active = false;
-    
-    buffer->freeNext = r->chunkBufferFreeFirst;
-    r->chunkBufferFreeFirst = buffer;
-}
-
-internal render_buffer *
-makeChunkRenderBuffer(mcRenderer *r)
-{
-    assert(r->chunkBufferIndex < arrayCount(r->chunkBuffers));
-    
-    if (r->chunkBufferFreeFirst == 0)
-    {
-        r->chunkBufferFreeFirst = r->chunkBuffers + r->chunkBufferIndex++;
-    }
-    
-    
-    render_buffer *result = r->chunkBufferFreeFirst;
-    r->chunkBufferFreeFirst = r->chunkBufferFreeFirst->freeNext;
-    
-    result->active = true;
-    result->vb.index = 0;
-    result->ib.index = 0;
-    result->freeNext = 0;
-    
-    return result;
-}
 
 #endif //RENDERER_H
