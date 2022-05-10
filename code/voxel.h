@@ -22,6 +22,8 @@ struct chunk
     
     hnGpuBuffer *vb;
     hnGpuBuffer *ib;
+    
+    f32 maxHeights[(s32)CHUNK_SIZE.z][(s32)CHUNK_SIZE.x];
 };
 
 struct voxel_map
@@ -50,21 +52,6 @@ getVoxelIndex(s32 x, s32 y, s32 z)
 {
     s32 result = (s32)(y*CHUNK_SIZE.x*CHUNK_SIZE.z + z*CHUNK_SIZE.x + x);
     return result;
-}
-
-inline s32
-getVoxel(chunk *c, s32 x, s32 y, s32 z)
-{
-    s32 index = getVoxelIndex(x, y, z);
-    s32 result = c->voxels[index];
-    return result;
-}
-
-inline void
-setVoxel(chunk *c, s32 x, s32 y, s32 z, u32 value)
-{
-    s32 index = getVoxelIndex(x, y, z);
-    c->voxels[index] = value;
 }
 
 #endif //VOXEL_H
