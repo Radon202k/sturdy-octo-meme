@@ -31,6 +31,7 @@ struct globals
     voxel_map overworld;
     camera cam;
     
+    b32 capturingMouse;
     
     v2 lastMouseP;
 };
@@ -48,12 +49,27 @@ hnResizeCallback(void)
 }
 
 internal void
+hnActivateCallback(b32 active)
+{
+    if (active)
+    {
+        app.capturingMouse = true;
+        captureMouse();
+    }
+    else
+    {
+        app.capturingMouse = false;
+        stopMouseCpature();
+    }
+}
+
+internal void
 initWorld(void)
 {
     app.cam.yaw = -90.0f;
     app.cam.pitch = 0;
     
-    app.cam.pos = {0,300,0};
+    app.cam.pos = {0,700,0};
     app.cam.front = {0,0,-1};
     app.cam.up = {0,1,0};
     
@@ -64,14 +80,20 @@ initWorld(void)
     app.overworld.permanent = &app.permanent;
     memset(app.overworld.hash, 0, sizeof(chunk *) * arrayCount(app.overworld.hash));
     
-    app.overworld.viewDist = {10,5,10};
+    app.overworld.viewDist = {10,20,10};
+    app.overworld.chunkShift = 4;
+    app.overworld.chunkDim = (1 << app.overworld.chunkShift);
+    app.overworld.chunkMask = app.overworld.chunkDim - 1;
+    
+    captureMouse();
+    app.capturingMouse = true;
 }
 
 internal void
 updateCameraInput(void)
 {
     hnKeyboard *key = &win32.input.keyboard;
-    f32 speed = 100.0f;
+    f32 speed = 30.0f;
     f32 dt = app.renderer->backend->dt;
     
     if (key->w.down)
@@ -110,7 +132,10 @@ updateCameraInput(void)
     v2 center = 0.5f * win32.clientDim;
     v2 deltaP = mouse->pos - center;
     
-    SetCursorPos((s32)center.x, (s32)center.y);
+    if (app.capturingMouse)
+    {
+        SetCursorPos((s32)center.x, (s32)center.y);
+    }
     
     f32 sensitivity = 10.0f;
     app.cam.yaw += sensitivity * dt * deltaP.x;
@@ -158,6 +183,9 @@ int WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdLine, int cmdSh
         app.renderer->ortho2dVb->index = 0;
         app.renderer->ortho2dIb->index = 0;
         
+        app.renderer->linesVb->index = 0;
+        app.renderer->linesIb->index = 0;
+        
         updateWorld();
         
         updateDebugDisplay();
@@ -165,7 +193,14 @@ int WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdLine, int cmdSh
         hnUploadGpuBuffer(app.renderer->backend, app.renderer->ortho2dVb);
         hnUploadGpuBuffer(app.renderer->backend, app.renderer->ortho2dIb);
         
+        hnUploadGpuBuffer(app.renderer->backend, app.renderer->linesVb);
+        hnUploadGpuBuffer(app.renderer->backend, app.renderer->linesIb);
+        
         updateProjectionMatrices(app.renderer, &app.cam);
+        
+        // Lines
+        hnExecuteRenderPass(app.renderer->backend, &app.renderer->lines3d, 
+                            app.renderer->linesVb, app.renderer->linesIb, true, hnDEEPPINK);
         
         
         v3 chunkLoadingCenter = app.overworld.currentCenter;
@@ -189,9 +224,8 @@ int WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdLine, int cmdSh
                     chunk *c = getChunk(&app.overworld, chunkX, chunkY, chunkZ);
                     if (c && c->active)
                     {
-                        b32 clear = (renderPassIndex++ == 0);
                         hnExecuteRenderPass(app.renderer->backend, &app.renderer->cubes, 
-                                            c->vb, c->ib, clear, hnDIMGRAY);
+                                            c->vb, c->ib, false, {});
                     }
                 }
             }

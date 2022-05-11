@@ -1,3 +1,19 @@
+inline chunk_pos
+getChunkPosFor(voxel_map *map, s32 absX, s32 absY, s32 absZ)
+{
+    chunk_pos result;
+    
+    result.chunkX = absX >> map->chunkShift;
+    result.chunkY = absY >> map->chunkShift;
+    result.chunkZ = absZ >> map->chunkShift;
+    
+    result.relVoxelX = absX & map->chunkMask;
+    result.relVoxelY = absY & map->chunkMask;
+    result.relVoxelZ = absZ & map->chunkMask;
+    
+    return result;
+}
+
 internal void
 freeChunk(mcRenderer *r, voxel_map *map, chunk *c)
 {
@@ -42,8 +58,8 @@ makeChunk(mcRenderer *r, voxel_map *map, s32 x, s32 y, s32 z)
         memset(map->freeFirst->voxels, 0, voxelCount*4);
     }
     
-    v3 oldP = map->freeFirst->p;
-    v3 newP = v3{(f32)x,(f32)y,(f32)z};
+    v3 oldP = V3i(map->freeFirst->chunkX,map->freeFirst->chunkY,map->freeFirst->chunkZ);
+    v3 newP = V3i(x,y,z);
     u32 hashIndex = getChunkHashIndex(map, (s32)newP.x, (s32)newP.y, (s32)newP.z);
     
     // Grab the head of the free list for the new chunk
@@ -118,12 +134,12 @@ vertices or just stop using indices altogether?
 */
         
         // Make vertex and index buffers if this chunk doesn't have any yet
-        result->vb = hnMakeVertexBuffer(r->backend, (u32)kilobytes(884), sizeof(f32)*9); 
-        result->ib = hnMakeIndexBuffer(r->backend, kilobytes(147));
+        result->vb = hnMakeVertexBuffer(r->backend, (u32)kilobytes(400), sizeof(f32)*9); 
+        result->ib = hnMakeIndexBuffer(r->backend, kilobytes(50));
         
-        hnSetInputLayout(result->vb, 0, GL_FLOAT, 3, offsetof(vertex3d, pos));
-        hnSetInputLayout(result->vb, 1, GL_FLOAT, 3, offsetof(vertex3d, uv));
-        hnSetInputLayout(result->vb, 2, GL_FLOAT, 3, offsetof(vertex3d, nor));
+        hnSetInputLayout(result->vb, 0, GL_FLOAT, 3, offsetof(vertex3d_cubes, pos), GL_FALSE);
+        hnSetInputLayout(result->vb, 1, GL_FLOAT, 3, offsetof(vertex3d_cubes, uv), GL_FALSE);
+        hnSetInputLayout(result->vb, 2, GL_FLOAT, 3, offsetof(vertex3d_cubes, nor), GL_TRUE);
     }
     
     // The chunk will only become active after the generation function
@@ -149,7 +165,9 @@ removeChunkIfInFreeList(mcRenderer *r, voxel_map *map, chunk *c)
     while (freeNode)
     {
         // Remove the chunk itself from chunk free list if the pos is the same
-        if (freeNode->p == c->p)
+        if (freeNode->chunkX == c->chunkX && 
+            freeNode->chunkY == c->chunkY && 
+            freeNode->chunkZ == c->chunkZ)
         {
             // If there is a previous pointer for this free node
             if (freeNode->freePrev)
@@ -193,75 +211,43 @@ getChunk(voxel_map *map, s32 x, s32 y, s32 z)
     if (result)
     {
         // Advance through the hash list until find a chunk with the right pos
-        while (result && ((result->p.x == x && result->p.y == y && result->p.z == z) == false))
+        while (result && ((result->chunkX == x && result->chunkY == y && result->chunkZ == z) == false))
         {
             result = result->nextInHash;
         }
     }
     
-    assert((result == 0) || (result->p.x == x && result->p.y == y && result->p.z == z));
+    assert((result == 0) || (result->chunkX == x && result->chunkY == y && result->chunkZ == z));
     
     return result;
 }
 
-inline s32
-getVoxel(voxel_map *map, chunk *c, s32 x, s32 y, s32 z)
+inline chunk *
+getChunk(voxel_map *map, chunk_pos p)
 {
-    s32 chunkX = (s32)c->p.x;
-    s32 chunkY = (s32)c->p.y;
-    s32 chunkZ = (s32)c->p.z;
-    b32 changedChunk = false;
-    if (x < 0)
-    {
-        --chunkX;
-        x += (s32)CHUNK_SIZE.x-1;
-        changedChunk = true;
-    }
-    else if (x >= CHUNK_SIZE.x)
-    {
-        ++chunkX;
-        x -= (s32)CHUNK_SIZE.x-1;
-        changedChunk = true;
-    }
-    
-    if (y < 0)
-    {
-        --chunkY;
-        y += (s32)CHUNK_SIZE.y-1;
-        changedChunk = true;
-    }
-    else if (y >= CHUNK_SIZE.y)
-    {
-        ++chunkY;
-        y -= (s32)CHUNK_SIZE.y-1;
-        changedChunk = true;
-    }
-    
-    if (z < 0)
-    {
-        --chunkZ;
-        z += (s32)CHUNK_SIZE.z-1;
-        changedChunk = true;
-    }
-    else if (z >= CHUNK_SIZE.z)
-    {
-        ++chunkZ;
-        z -= (s32)CHUNK_SIZE.z-1;
-        changedChunk = true;
-    }
+    chunk *result = getChunk(map, p.chunkX, p.chunkY, p.chunkZ);
+    return result;
+}
+
+inline s32
+getVoxel(voxel_map *map, chunk *c, s32 relX, s32 relY, s32 relZ)
+{
+    s32 index = getVoxelIndex(relX, relY, relZ);
+    s32 result = c->voxels[index];
+    return result;
+}
+
+inline s32
+getVoxel(voxel_map *map, s32 absX, s32 absY, s32 absZ)
+{
+    chunk_pos chunkP = getChunkPosFor(map, absX, absY, absZ);
+    chunk *c = getChunk(map, chunkP);
     
     s32 result = 0;
-    if (changedChunk)
-    {
-        c = getChunk(map, chunkX, chunkY, chunkZ);
-    }
-    
     if (c)
     {
-        s32 index = getVoxelIndex(x, y, z);
-        result = c->voxels[index];
+        result = getVoxel(map, c, chunkP.relVoxelX, chunkP.relVoxelY, chunkP.relVoxelZ);
     }
-    
     return result;
 }
 
@@ -275,8 +261,8 @@ setVoxel(chunk *c, s32 x, s32 y, s32 z, u32 value)
 internal void
 pushFacesThatFaceAFreeSpace(voxel_map *map, chunk *c, hnSprite sprite, s32 x, s32 y, s32 z)
 {
-    v3 pos = c->p * CHUNK_SIZE + v3{(f32)x,(f32)y,(f32)z};
-    v3 dim = {1,1,1};
+    v3 pos = V3i(c->chunkX,c->chunkY,c->chunkZ) * CHUNK_SIZE + v3{(f32)x,(f32)y,(f32)z};
+    v3 dim = v3{1,1,1};
     
     v3 uvMin = sprite.uvMin;
     v3 uvMax = sprite.uvMax;
@@ -289,58 +275,87 @@ pushFacesThatFaceAFreeSpace(voxel_map *map, chunk *c, hnSprite sprite, s32 x, s3
     f32 py = pos.y + 0.5f*dim.y;
     f32 pz = pos.z + 0.5f*dim.z;
     
-    v4 color = hnWHITE;
-    
-    
-#if 0
-    if (y == c->maxHeights[z][x]-1)
-    {
-        // Up face
-        hnPushCubeFaceIndexed(c->vb,c->ib,sprite,{nx,py,pz},{px,py,pz},{px,py,nz},{nx,py,nz},{0,1,0});
-    }
-    else if (y == 0)
-    {
-        // TODO: Draw bottom face?
-        // hnPushCubeFaceIndexed(c->vb,c->ib,sprite,{nx,ny,nz},{px,ny,nz},{px,ny,pz},{nx,ny,pz},{0,-1,0});
-    }
-#endif
-    
     if (c)
     {
-        if (getVoxel(map, c, x-1, y, z) == 0)
+        // If at the border, use absolute voxel position that queries a chunk
+        if (x == 0 || x == CHUNK_SIZE.x-1 ||
+            y == 0 || y == CHUNK_SIZE.y-1 ||
+            z == 0 || z == CHUNK_SIZE.z-1)
         {
-            // Left face
-            hnPushCubeFaceIndexed(c->vb,c->ib,sprite,{nx,ny,nz},{nx,ny,pz},{nx,py,pz},{nx,py,nz},{-1,0,0});
+            if (getVoxel(map, (s32)pos.x-1, (s32)pos.y, (s32)pos.z) == 0)
+            {
+                // Left face
+                hnPushCubeFaceIndexed(c->vb,c->ib,sprite,{nx,ny,nz},{nx,ny,pz},{nx,py,pz},{nx,py,nz},{-1,0,0});
+            }
+            
+            if (getVoxel(map, (s32)pos.x+1, (s32)pos.y, (s32)pos.z) == 0)
+            {
+                // Right face
+                hnPushCubeFaceIndexed(c->vb,c->ib,sprite,{px,ny,pz},{px,ny,nz},{px,py,nz},{px,py,pz},{1,0,0});
+            }
+            
+            if (getVoxel(map, (s32)pos.x, (s32)pos.y-1, (s32)pos.z) == 0)
+            {
+                // Bottom face
+                hnPushCubeFaceIndexed(c->vb,c->ib,sprite,{nx,ny,nz},{px,ny,nz},{px,ny,pz},{nx,ny,pz},{0,-1,0});
+            }
+            
+            if (getVoxel(map, (s32)pos.x, (s32)pos.y+1, (s32)pos.z) == 0)
+            {
+                // Up face
+                hnPushCubeFaceIndexed(c->vb,c->ib,sprite,{nx,py,pz},{px,py,pz},{px,py,nz},{nx,py,nz},{0,1,0});
+            }
+            
+            if (getVoxel(map, (s32)pos.x, (s32)pos.y, (s32)pos.z-1) == 0)
+            {
+                // Back face
+                hnPushCubeFaceIndexed(c->vb,c->ib,sprite,{nx,py,nz},{px,py,nz},{px,ny,nz},{nx,ny,nz},{0,0,-1});
+            }
+            
+            if (getVoxel(map, (s32)pos.x, (s32)pos.y, (s32)pos.z+1) == 0)
+            {
+                // Front face
+                hnPushCubeFaceIndexed(c->vb,c->ib,sprite,{nx,ny,pz},{px,ny,pz},{px,py,pz},{nx,py,pz},{0,0,1});
+            }
         }
-        
-        if (getVoxel(map, c, x+1, y, z) == 0)
+        else
         {
-            // Right face
-            hnPushCubeFaceIndexed(c->vb,c->ib,sprite,{px,ny,pz},{px,ny,nz},{px,py,nz},{px,py,pz},{1,0,0});
-        }
-        
-        if (getVoxel(map, c, x, y-1, z) == 0)
-        {
-            // Bottom face
-            hnPushCubeFaceIndexed(c->vb,c->ib,sprite,{nx,ny,nz},{px,ny,nz},{px,ny,pz},{nx,ny,pz},{0,-1,0});
-        }
-        
-        if (getVoxel(map, c, x, y+1, z) == 0)
-        {
-            // Up face
-            hnPushCubeFaceIndexed(c->vb,c->ib,sprite,{nx,py,pz},{px,py,pz},{px,py,nz},{nx,py,nz},{0,1,0});
-        }
-        
-        if (getVoxel(map, c, x, y, z-1) == 0)
-        {
-            // Back face
-            hnPushCubeFaceIndexed(c->vb,c->ib,sprite,{nx,py,nz},{px,py,nz},{px,ny,nz},{nx,ny,nz},{0,0,-1});
-        }
-        
-        if (getVoxel(map, c, x, y, z+1) == 0)
-        {
-            // Front face
-            hnPushCubeFaceIndexed(c->vb,c->ib,sprite,{nx,ny,pz},{px,ny,pz},{px,py,pz},{nx,py,pz},{0,0,1});
+            // Otherwise use the fast look up into the chunk we already have
+            if (getVoxel(map, c, x-1, y, z) == 0)
+            {
+                // Left face
+                hnPushCubeFaceIndexed(c->vb,c->ib,sprite,{nx,ny,nz},{nx,ny,pz},{nx,py,pz},{nx,py,nz},{-1,0,0});
+            }
+            
+            if (getVoxel(map, c,(s32)x+1, (s32)y, (s32)z) == 0)
+            {
+                // Right face
+                hnPushCubeFaceIndexed(c->vb,c->ib,sprite,{px,ny,pz},{px,ny,nz},{px,py,nz},{px,py,pz},{1,0,0});
+            }
+            
+            if (getVoxel(map, c,(s32)x, (s32)y-1, (s32)z) == 0)
+            {
+                // Bottom face
+                hnPushCubeFaceIndexed(c->vb,c->ib,sprite,{nx,ny,nz},{px,ny,nz},{px,ny,pz},{nx,ny,pz},{0,-1,0});
+            }
+            
+            if (getVoxel(map, c,(s32)x, (s32)y+1, (s32)z) == 0)
+            {
+                // Up face
+                hnPushCubeFaceIndexed(c->vb,c->ib,sprite,{nx,py,pz},{px,py,pz},{px,py,nz},{nx,py,nz},{0,1,0});
+            }
+            
+            if (getVoxel(map, c,(s32)x, (s32)y, (s32)z-1) == 0)
+            {
+                // Back face
+                hnPushCubeFaceIndexed(c->vb,c->ib,sprite,{nx,py,nz},{px,py,nz},{px,ny,nz},{nx,ny,nz},{0,0,-1});
+            }
+            
+            if (getVoxel(map, c,(s32)x, (s32)y, (s32)z+1) == 0)
+            {
+                // Front face
+                hnPushCubeFaceIndexed(c->vb,c->ib,sprite,{nx,ny,pz},{px,ny,pz},{px,py,pz},{nx,py,pz},{0,0,1});
+            }
         }
     }
 }
@@ -361,10 +376,10 @@ generateChunkValues(chunk *c, f32 maxHeight)
         {
             u32 cubeMaterial = 1;
             
-            f32 compX = (f32)(c->p.x*CHUNK_SIZE.x + voxelX);
-            f32 compZ = (f32)(c->p.z*CHUNK_SIZE.z + voxelZ);
+            f32 compX = (f32)(c->chunkX*CHUNK_SIZE.x + voxelX);
+            f32 compZ = (f32)(c->chunkZ*CHUNK_SIZE.z + voxelZ);
             
-            f32 height = floorf(maxHeight*(f32)hnPerlin2D(compX,compZ,0.009f,4));
+            f32 height = floorf(maxHeight*(f32)hnPerlin2D(compX,compZ,0.004f,8));
             c->maxHeights[voxelZ][voxelX] = height;
         }
     }
@@ -383,7 +398,7 @@ generateChunkValues(chunk *c, f32 maxHeight)
                  voxelY < CHUNK_SIZE.y;
                  ++voxelY)
             {
-                s32 compY = (s32)c->p.y * (s32)CHUNK_SIZE.y + voxelY;
+                s32 compY = (s32)c->chunkY * (s32)CHUNK_SIZE.y + voxelY;
                 
                 if (compY < maxHeightForXZ)
                 {
@@ -419,9 +434,9 @@ pushChunkGeometryToGpuBuffer(mcRenderer *r, voxel_map *map, chunk *c)
             {
                 u32 material = getVoxel(map, c, x, y, z);
                 
-                f32 compX = c->p.x*scale.x*CHUNK_SIZE.x + x;
-                f32 compY = c->p.y*scale.y*CHUNK_SIZE.y + y;
-                f32 compZ = c->p.z*scale.z*CHUNK_SIZE.z + z;
+                f32 compX = c->chunkX*scale.x*CHUNK_SIZE.x + x;
+                f32 compY = c->chunkY*scale.y*CHUNK_SIZE.y + y;
+                f32 compZ = c->chunkZ*scale.z*CHUNK_SIZE.z + z;
                 
                 v3 p = 
                 {
@@ -482,6 +497,7 @@ updateChunkLoading(mcRenderer *r, voxel_map *map, v3 camP)
         
         v3 min = {10000000,10000000,10000000};
         v3 max = {-10000000,-10000000,-10000000};
+        
         
         for (s32 i = 0;
              i < 4;
@@ -545,7 +561,9 @@ updateChunkLoading(mcRenderer *r, voxel_map *map, v3 camP)
                             if (c->cameFromFreeList)
                             {
                                 // NOTE: If the chunk came from the free list, it should never be the same chunk
-                                assert(c->p != chunkP);
+                                assert(!((f32)c->chunkX == chunkP.x &&
+                                         (f32)c->chunkY == chunkP.y &&
+                                         (f32)c->chunkZ == chunkP.z));
                                 // This could never happen because when we free a chunk we let it keep its pos
                                 // and all the rest of its data, that is so that we can keep that work later on.
                                 // So in the hash table, the chunk is marked as inactive and the chunk is also
@@ -568,7 +586,9 @@ updateChunkLoading(mcRenderer *r, voxel_map *map, v3 camP)
                             
                             // NOTE: makeChunk() doesn't set the position because of the assert above, so we need
                             // to set it right here.
-                            c->p = v3{(f32)chunkX,(f32)chunkY,(f32)chunkZ};
+                            c->chunkX = chunkX;
+                            c->chunkY = chunkY;
+                            c->chunkZ = chunkZ;
                             
                         }
                         
@@ -589,7 +609,7 @@ updateChunkLoading(mcRenderer *r, voxel_map *map, v3 camP)
                             // TODO: We have the chunk generation and the data copy to GPU in 
                             // separate steps at the moment. Not sure if it is a good idea?
                             // There are possibly redundent loops going on.
-                            generateChunkValues(c, 128);
+                            generateChunkValues(c, 1000);
                             pushChunkGeometryToGpuBuffer(r, map, c);
                         }
                         else
@@ -600,6 +620,10 @@ updateChunkLoading(mcRenderer *r, voxel_map *map, v3 camP)
                                 // NOTE: Completely blank active chunk
                             }
                         }
+                        
+                        v3 lineA = V3i(c->chunkX,c->chunkY,c->chunkZ);
+                        v3 lineB = lineA + CHUNK_SIZE;
+                        hnPushLineIndexed(r->linesVb, r->linesIb, min, max, hnGOLD);
                     }
                 }
             }

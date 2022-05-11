@@ -17,20 +17,9 @@
 #define HANE3D_STB_TRUETYPE
 #include "h:\hane3d\hane3d.h"
 
-struct vertex2d
-{
-    v3 pos;
-    v3 uv;
-    v4 col;
-};
-
-struct vertex3d
-{
-    v3 pos;
-    v3 uv;
-    v3 nor;
-    v4 col;
-};
+struct vertex2d { v3 pos; v3 uv; u32 col; };
+struct vertex3d_cubes { v3 pos; v3 uv; v3 nor; };
+struct vertex3d_lines { v3 pos; u32 col; };
 
 struct camera
 {
@@ -42,13 +31,14 @@ struct camera
     f32 pitch;
 };
 
-#define CHUNK_HASH_TABLE_SIZE 512
+#define CHUNK_HASH_TABLE_SIZE 4096
 
 struct mcRenderer
 {
     hnRenderer *backend;
     
     hnShader shader3d;
+    hnShader lineShader3d;;
     hnShader shader2d;
     hnFont font;
     
@@ -65,11 +55,15 @@ struct mcRenderer
     hnSprite cobblestone;
     
     hnRenderPass cubes;
+    hnRenderPass lines3d;
     
     hnRenderPass ortho2d;
-    
     hnGpuBuffer *ortho2dVb;
     hnGpuBuffer *ortho2dIb;
+    
+    hnRenderPass lines;
+    hnGpuBuffer *linesVb;
+    hnGpuBuffer *linesIb;
 };
 
 #endif //RENDERER_H
