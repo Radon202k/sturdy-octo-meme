@@ -64,7 +64,7 @@ initWorld(void)
     app.overworld.permanent = &app.permanent;
     memset(app.overworld.hash, 0, sizeof(chunk *) * arrayCount(app.overworld.hash));
     
-    app.overworld.viewDist = {10,1,10};
+    app.overworld.viewDist = {10,5,10};
 }
 
 internal void
@@ -178,16 +178,21 @@ int WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdLine, int cmdSh
              chunkX < extentsMax.x;
              ++chunkX)
         {
-            for (s32 chunkZ = (s32)extentsMin.z;
-                 chunkZ < extentsMax.z;
-                 ++chunkZ)
+            for (s32 chunkY = (s32)extentsMin.y;
+                 chunkY < extentsMax.y;
+                 ++chunkY)
             {
-                chunk *c = getChunk(&app.overworld, chunkX, 0, chunkZ);
-                if (c && c->active)
+                for (s32 chunkZ = (s32)extentsMin.z;
+                     chunkZ < extentsMax.z;
+                     ++chunkZ)
                 {
-                    b32 clear = (renderPassIndex++ == 0);
-                    hnExecuteRenderPass(app.renderer->backend, &app.renderer->cubes, 
-                                        c->vb, c->ib, clear, hnDIMGRAY);
+                    chunk *c = getChunk(&app.overworld, chunkX, chunkY, chunkZ);
+                    if (c && c->active)
+                    {
+                        b32 clear = (renderPassIndex++ == 0);
+                        hnExecuteRenderPass(app.renderer->backend, &app.renderer->cubes, 
+                                            c->vb, c->ib, clear, hnDIMGRAY);
+                    }
                 }
             }
         }

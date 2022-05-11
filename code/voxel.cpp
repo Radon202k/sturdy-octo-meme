@@ -2,8 +2,8 @@ internal void
 freeChunk(mcRenderer *r, voxel_map *map, chunk *c)
 {
     assert(c->active);
-    assert(c->vb && c->vb->index);
-    assert(c->ib && c->ib->index);
+    assert(c->vb);
+    assert(c->ib);
     
     c->active = false;
     
@@ -57,7 +57,7 @@ makeChunk(mcRenderer *r, voxel_map *map, s32 x, s32 y, s32 z)
         // it means it should have a different position than the one we want.
         assert((oldP != newP));
         assert(result->active == false);
-        assert(result->vb && result->vb->index && result->ib && result->ib->index);
+        assert(result->vb && result->ib);
         
         // Also, the chunk is currently in a wrong position in the hash table, so we need
         // to remove it from that chain and push it to a new chain. This is because we are
@@ -97,9 +97,29 @@ makeChunk(mcRenderer *r, voxel_map *map, s32 x, s32 y, s32 z)
     {
         assert(!result->ib);
         
+        /* NOTE: 
+        
+A chunk is 16x16x16 blocks = 4096 blocks
+However at maximum only half of the blocks can have 
+up to 3 maximum faces visible at the same time.
+ So we can assume the vertex buffer will never need
+more than 2048x3 = 6144 faces worth of space.
+we have 36 bytes per vertex, 4 vertices per face
+that is 36x4x6144 = 884kb max of gpu memory.
+
+
+Similarly, 4 bytes x 6 indices x 6144 faces = 147kb (index buffer)
+
+IMPORTANT: Since we push faces one at a time, we
+may have a lot of redundent vertices being pushed.
+TODO: So we should consider to either try to reuse
+vertices or just stop using indices altogether?
+
+*/
+        
         // Make vertex and index buffers if this chunk doesn't have any yet
-        result->vb = hnMakeVertexBuffer(r->backend, (u32)megabytes(3.5f), sizeof(f32)*9); 
-        result->ib = hnMakeIndexBuffer(r->backend, kilobytes(393));
+        result->vb = hnMakeVertexBuffer(r->backend, (u32)kilobytes(884), sizeof(f32)*9); 
+        result->ib = hnMakeIndexBuffer(r->backend, kilobytes(147));
         
         hnSetInputLayout(result->vb, 0, GL_FLOAT, 3, offsetof(vertex3d, pos));
         hnSetInputLayout(result->vb, 1, GL_FLOAT, 3, offsetof(vertex3d, uv));
@@ -165,7 +185,7 @@ removeChunkIfInFreeList(mcRenderer *r, voxel_map *map, chunk *c)
 }
 
 inline chunk *
-getChunk(voxel_map *map, s32 x, s32 y, s32 z, b32 makeIfNotFound=false)
+getChunk(voxel_map *map, s32 x, s32 y, s32 z)
 {
     u32 hashIndex = getChunkHashIndex(map, x, y, z);
     chunk *result = map->hash[hashIndex];
@@ -184,11 +204,11 @@ getChunk(voxel_map *map, s32 x, s32 y, s32 z, b32 makeIfNotFound=false)
     return result;
 }
 
-
 inline s32
 getVoxel(voxel_map *map, chunk *c, s32 x, s32 y, s32 z)
 {
     s32 chunkX = (s32)c->p.x;
+    s32 chunkY = (s32)c->p.y;
     s32 chunkZ = (s32)c->p.z;
     b32 changedChunk = false;
     if (x < 0)
@@ -201,6 +221,19 @@ getVoxel(voxel_map *map, chunk *c, s32 x, s32 y, s32 z)
     {
         ++chunkX;
         x -= (s32)CHUNK_SIZE.x-1;
+        changedChunk = true;
+    }
+    
+    if (y < 0)
+    {
+        --chunkY;
+        y += (s32)CHUNK_SIZE.y-1;
+        changedChunk = true;
+    }
+    else if (y >= CHUNK_SIZE.y)
+    {
+        ++chunkY;
+        y -= (s32)CHUNK_SIZE.y-1;
         changedChunk = true;
     }
     
@@ -220,7 +253,7 @@ getVoxel(voxel_map *map, chunk *c, s32 x, s32 y, s32 z)
     s32 result = 0;
     if (changedChunk)
     {
-        c = getChunk(map, chunkX, 0, chunkZ);
+        c = getChunk(map, chunkX, chunkY, chunkZ);
     }
     
     if (c)
@@ -238,7 +271,6 @@ setVoxel(chunk *c, s32 x, s32 y, s32 z, u32 value)
     s32 index = getVoxelIndex(x, y, z);
     c->voxels[index] = value;
 }
-
 
 internal void
 pushFacesThatFaceAFreeSpace(voxel_map *map, chunk *c, hnSprite sprite, s32 x, s32 y, s32 z)
@@ -346,11 +378,21 @@ generateChunkValues(chunk *c, f32 maxHeight)
              voxelZ < CHUNK_SIZE.z;
              ++voxelZ)
         {
-            for (s32 voxelY = (s32)c->maxHeights[voxelZ][voxelX];
-                 voxelY >= 0;
-                 --voxelY)
+            s32 maxHeightForXZ = (s32)c->maxHeights[voxelZ][voxelX];
+            for (s32 voxelY = 0;
+                 voxelY < CHUNK_SIZE.y;
+                 ++voxelY)
             {
-                setVoxel(c, voxelX, voxelY, voxelZ, 1);
+                s32 compY = (s32)c->p.y * (s32)CHUNK_SIZE.y + voxelY;
+                
+                if (compY < maxHeightForXZ)
+                {
+                    setVoxel(c, voxelX, voxelY, voxelZ, 1);
+                }
+                else
+                {
+                    setVoxel(c, voxelX, voxelY, voxelZ, 0);
+                }
             }
         }
     }
@@ -422,9 +464,7 @@ updateChunkLoading(mcRenderer *r, voxel_map *map, v3 camP)
     
     b32 firstTime = ((map->currentCenter == map->oldCenter) && (map->currentCenter == v3{0,0,0}));
     
-    b32 camMovedMaxDistance = ((absolute(cameraChunkP.x - map->currentCenter.x) >= (0.25f*map->viewDist.x) ||
-                                absolute(cameraChunkP.z - map->currentCenter.z) >= (0.25f*map->viewDist.z)));
-    
+    b32 camMovedMaxDistance = (length(cameraChunkP - map->currentCenter) >= 0.25f*map->viewDist.x);
     if (firstTime || camMovedMaxDistance)
     {
         // Unload and load only the chunks around it
@@ -447,122 +487,119 @@ updateChunkLoading(mcRenderer *r, voxel_map *map, v3 camP)
              i < 4;
              ++i)
         {
-            if (p[i].x < min.x)
-            {
-                min.x = p[i].x;
-            }
+            // Determine min
+            if (p[i].x < min.x){ min.x = p[i].x; }
+            if (p[i].y < min.y){ min.y = p[i].y; }
+            if (p[i].z < min.z){ min.z = p[i].z; }
             
-            if (p[i].z < min.z)
-            {
-                min.z = p[i].z;
-            }
-            
-            if (p[i].x > max.x)
-            {
-                max.x = p[i].x;
-            }
-            
-            if (p[i].z > max.z)
-            {
-                max.z = p[i].z;
-            }
+            // Determine max
+            if (p[i].x > max.x){ max.x = p[i].x; }
+            if (p[i].y > max.y){ max.y = p[i].y; }
+            if (p[i].z > max.z){ max.z = p[i].z; }
         }
         
         // NOTE: Loop through all of the chunks in a big square containing all
         // chunks that could be inside the circle with viewdist as radius. They
         // are tested against a dist diagonally so we have a "circular" view dist.
-        s32 chunkY = 0;
         for (s32 chunkX = (s32)(min.x + 0.5f);
              chunkX < (s32)(max.x + 0.5f);
              ++chunkX)
         {
-            for (s32 chunkZ = (s32)(min.z + 0.5f);
-                 chunkZ < (s32)(max.z + 0.5f);
-                 ++chunkZ)
+            for (s32 chunkY = (s32)(min.y + 0.5f);
+                 chunkY < (s32)(max.y + 0.5f);
+                 ++chunkY)
             {
-                v3 chunkP = {(f32)chunkX,(f32)chunkY,(f32)chunkZ};
-                
-                v2 newCenterXZ = {map->currentCenter.x, map->currentCenter.z};
-                v2 chunkXZ = {(f32)chunkX, (f32)chunkZ};
-                
-                f32 distFromNewCenter = length(newCenterXZ - chunkXZ); // Integer chunk coords
-                // NOTE: View dist is a v3 with all equal dimensions
-                f32 maxDist = 0.5f * map->viewDist.x;  
-                
-                // NOTE: Free the chunk if it is too distant (outside the "circle")
-                if (distFromNewCenter > maxDist)
+                for (s32 chunkZ = (s32)(min.z + 0.5f);
+                     chunkZ < (s32)(max.z + 0.5f);
+                     ++chunkZ)
                 {
-                    chunk *c = getChunk(map, chunkX, chunkY, chunkZ);
-                    if (c && c->active)
-                    {
-                        freeChunk(r, map, c);
-                    }
-                }
-                else
-                {
-                    // NOTE: The chunk is inside the "circle"
-                    chunk *c = getChunk(map, chunkX, chunkY, chunkZ);
+                    v3 chunkP = {(f32)chunkX,(f32)chunkY,(f32)chunkZ};
                     
-                    // NOTE: If the hash table look up failed, it means this chunk has not been created yet.
-                    // So we will need to make it.
-                    if (!c)
-                    {
-                        c = makeChunk(r, map, chunkX, chunkY, chunkZ);
-                        assert(c->vb && c->ib);
-                        
-                        if (c->cameFromFreeList)
-                        {
-                            // NOTE: If the chunk came from the free list, it should never be the same chunk
-                            assert(c->p != chunkP);
-                            // This could never happen because when we free a chunk we let it keep its pos
-                            // and all the rest of its data, that is so that we can keep that work later on.
-                            // So in the hash table, the chunk is marked as inactive and the chunk is also
-                            // pushed to the free list, but the hash table still contains the pointer to the
-                            // freed chunk, which means we can access it directly and through the free list.
-                            // But since we always try to getChunk() before calling makeChunk() (which uses
-                            // the free list), it means we will always get the chunk in getChunk() if it has
-                            // been created before, which is the only case it could have the same position.
-                            // Then, we also remove it from the free list right there, so the assert should
-                            // never fail.
-                            
-                            assert(c->vb->index && c->ib->index);
-                            c->vb->index = 0;
-                            c->ib->index = 0;
-                        }
-                        else
-                        {
-                            assert(!c->vb->index && !c->ib->index);
-                        }
-                        
-                        // NOTE: makeChunk() doesn't set the position because of the assert above, so we need
-                        // to set it right here.
-                        c->p = v3{(f32)chunkX,(f32)chunkY,(f32)chunkZ};
-                        
-                    }
+                    v3 newCenter = map->currentCenter;
                     
-                    if (c->active == false)
+                    f32 distFromNewCenter = length(newCenter - chunkP); // Integer chunk coords
+                    // NOTE: View dist is a v3 with all equal dimensions
+                    f32 maxDist = 0.5f * map->viewDist.x;  
+                    
+                    // NOTE: Free the chunk if it is too distant (outside the "circle")
+                    if (distFromNewCenter > maxDist)
                     {
-                        c->active = true;
-                        
-                        // NOTE: If this chunk in in the free list currently that is a problem
-                        // Because since we are accessing this chunk directly in the hash table
-                        // we wouldn't know it is used when we would try to use it from the free
-                        // list. We could choose to test against it then and remove it from the
-                        // free list, or we could choose to remove it from the free list here.
-                        // Currently we are just removing it from the free list here.
-                        removeChunkIfInFreeList(r, map, c);
-                        // TODO: Test with both options, and measure which one performs better.
-                        
-                        
-                        // TODO: We have the chunk generation and the data copy to GPU in 
-                        // separate steps at the moment. Not sure if it is a good idea?
-                        // There are possibly redundent loops going on.
-                        generateChunkValues(c, 128);
-                        pushChunkGeometryToGpuBuffer(r, map, c);
+                        chunk *c = getChunk(map, chunkX, chunkY, chunkZ);
+                        if (c && c->active)
+                        {
+                            freeChunk(r, map, c);
+                        }
                     }
                     else
                     {
-                        assert(c->vb && c->vb->index && c->ib && c->ib->index);
+                        // NOTE: The chunk is inside the "circle"
+                        chunk *c = getChunk(map, chunkX, chunkY, chunkZ);
+                        
+                        // NOTE: If the hash table look up failed, it means this chunk has not been created yet.
+                        // So we will need to make it.
+                        if (!c)
+                        {
+                            c = makeChunk(r, map, chunkX, chunkY, chunkZ);
+                            assert(c->vb && c->ib);
+                            
+                            if (c->cameFromFreeList)
+                            {
+                                // NOTE: If the chunk came from the free list, it should never be the same chunk
+                                assert(c->p != chunkP);
+                                // This could never happen because when we free a chunk we let it keep its pos
+                                // and all the rest of its data, that is so that we can keep that work later on.
+                                // So in the hash table, the chunk is marked as inactive and the chunk is also
+                                // pushed to the free list, but the hash table still contains the pointer to the
+                                // freed chunk, which means we can access it directly and through the free list.
+                                // But since we always try to getChunk() before calling makeChunk() (which uses
+                                // the free list), it means we will always get the chunk in getChunk() if it has
+                                // been created before, which is the only case it could have the same position.
+                                // Then, we also remove it from the free list right there, so the assert should
+                                // never fail.
+                                
+                                assert(c->vb && c->ib);
+                                c->vb->index = 0;
+                                c->ib->index = 0;
+                            }
+                            else
+                            {
+                                assert(!c->vb->index && !c->ib->index);
+                            }
+                            
+                            // NOTE: makeChunk() doesn't set the position because of the assert above, so we need
+                            // to set it right here.
+                            c->p = v3{(f32)chunkX,(f32)chunkY,(f32)chunkZ};
+                            
+                        }
+                        
+                        if (c->active == false)
+                        {
+                            c->active = true;
+                            
+                            // NOTE: If this chunk in in the free list currently that is a problem
+                            // Because since we are accessing this chunk directly in the hash table
+                            // we wouldn't know it is used when we would try to use it from the free
+                            // list. We could choose to test against it then and remove it from the
+                            // free list, or we could choose to remove it from the free list here.
+                            // Currently we are just removing it from the free list here.
+                            removeChunkIfInFreeList(r, map, c);
+                            // TODO: Test with both options, and measure which one performs better.
+                            
+                            
+                            // TODO: We have the chunk generation and the data copy to GPU in 
+                            // separate steps at the moment. Not sure if it is a good idea?
+                            // There are possibly redundent loops going on.
+                            generateChunkValues(c, 128);
+                            pushChunkGeometryToGpuBuffer(r, map, c);
+                        }
+                        else
+                        {
+                            assert(c->vb && c->ib);
+                            if (!c->vb->index && !c->ib->index)
+                            {
+                                // NOTE: Completely blank active chunk
+                            }
+                        }
                     }
                 }
             }
